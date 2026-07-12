@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Overview{% endblock %}
+{% block page_title %}Welcome, {{ profile.full_name.split(' ')[0] if profile else '' }}{% endblock %}
+
+{% block content %}
+{% if not profile.profile_completed %}
+<div class="help-banner">
+  Your administrator has set up your employee ID and joining details. Please complete the rest
+  of your profile — address, ID documents, bank details, and family details — so HR records are
+  accurate.
+  <a href="{{ url_for('employee_edit_profile') }}">Complete your profile →</a>
+</div>
+{% endif %}
+
+<div class="card">
+  <h3>Your details so far</h3>
+  <p class="card-sub">Set by your administrator — read-only.</p>
+  <div class="profile-grid">
+    <div>
+      <div class="pi-label">Full name</div>
+      <div class="pi-value">{{ profile.full_name }}</div>
+    </div>
+    <div>
+      <div class="pi-label">Employee ID</div>
+      <div class="pi-value">{{ current_user.employee_code }}</div>
+    </div>
+    <div>
+      <div class="pi-label">Designation</div>
+      <div class="pi-value">{{ profile.designation or '—' }}</div>
+    </div>
+    <div>
+      <div class="pi-label">Department</div>
+      <div class="pi-value">{{ profile.department or '—' }}</div>
+    </div>
+    <div>
+      <div class="pi-label">Date of joining</div>
+      <div class="pi-value">{{ profile.date_of_joining.strftime('%d %b %Y') if profile.date_of_joining else '—' }}</div>
+    </div>
+    <div>
+      <div class="pi-label">Reporting manager</div>
+      <div class="pi-value">{{ profile.reporting_manager.profile.full_name if profile.reporting_manager else '—' }}</div>
+    </div>
+  </div>
+</div>
+
+<a href="{{ url_for('employee_edit_profile') }}" class="btn btn-primary">
+  {{ 'Edit my profile' if profile.profile_completed else 'Complete my profile' }}
+</a>
+<a href="{{ url_for('employee_view_own_profile') }}" class="btn btn-outline">View full profile</a>
+<a href="{{ url_for('my_leaves') }}" class="btn btn-outline">My leaves</a>
+{% endblock %}

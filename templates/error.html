@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+  <title>{{ code }} — SaarthiEV Mobility HRMS Portal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="auth-wrap">
+    <div class="auth-card" style="text-align:center;">
+      <div class="auth-mark auth-mark-logo" style="justify-content:center;">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="SaarthiEV Mobility" class="auth-logo-img">
+        <div style="text-align:left;">
+          <span class="word">SaarthiEV Mobility Pvt Ltd</span>
+          <div class="auth-mark-sub">HRMS Portal</div>
+        </div>
+      </div>
+      <h1 style="font-size:48px; margin: 18px 0 6px;">{{ code }}</h1>
+      <p class="auth-sub" style="margin-bottom: 24px;">{{ message }}</p>
+      <a href="/" class="btn btn-outline">Back to dashboard</a>
+    </div>
+  </div>
+</body>
+</html>

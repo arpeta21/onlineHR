@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Leave types{% endblock %}
+{% block page_title %}Leave types{% endblock %}
+
+{% block content %}
+<div class="help-banner">
+  These are annual entitlements. New employees joining partway through the year automatically
+  get a prorated share based on their date of joining — full quota applies from their next
+  calendar year onward. Editing a quota here recalculates everyone's balance for the current year.
+</div>
+
+<div class="card">
+  <h3>Add a leave type</h3>
+  <form method="POST" action="{{ url_for('admin_create_leave_type') }}" style="display:flex; gap:14px; align-items:flex-end; flex-wrap:wrap;">
+    <div class="field" style="margin-bottom:0; flex:2; min-width:200px;">
+      <label for="name">Name</label>
+      <input type="text" id="name" name="name" placeholder="e.g. Maternity Leave" required>
+    </div>
+    <div class="field" style="margin-bottom:0; flex:1; min-width:140px;">
+      <label for="annual_quota">Annual quota (days)</label>
+      <input type="number" id="annual_quota" name="annual_quota" min="0" step="1" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Add leave type</button>
+  </form>
+</div>
+
+<div class="card">
+  <h3>Existing leave types</h3>
+  {% if leave_types %}
+  <table class="list">
+    <thead>
+      <tr><th>Name</th><th>Annual quota</th><th>Status</th><th>Update quota</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for lt in leave_types %}
+      <tr>
+        <td>{{ lt.name }}</td>
+        <td>{{ lt.annual_quota }} days/year</td>
+        <td>
+          {% if lt.is_active %}<span class="badge badge-complete">Active</span>
+          {% else %}<span class="badge badge-pending">Inactive</span>{% endif %}
+        </td>
+        <td>
+          <form method="POST" action="{{ url_for('admin_edit_leave_type', type_id=lt.id) }}" style="display:flex; gap:8px;">
+            <input type="number" name="annual_quota" min="0" step="1" value="{{ lt.annual_quota }}" style="width:90px;">
+            <button type="submit" class="btn btn-outline btn-sm">Save</button>
+          </form>
+        </td>
+        <td>
+          <form method="POST" action="{{ url_for('admin_toggle_leave_type', type_id=lt.id) }}"
+                onsubmit="return confirm('{{ 'Deactivate' if lt.is_active else 'Reactivate' }} {{ lt.name }}?');">
+            <button type="submit" class="btn btn-outline btn-sm">{{ 'Deactivate' if lt.is_active else 'Reactivate' }}</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <div class="sq"></div>
+    No leave types yet. Add one above.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

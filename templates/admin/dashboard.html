@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Overview{% endblock %}
+{% block page_title %}Admin overview{% endblock %}
+
+{% block content %}
+<div class="stat-row">
+  <div class="stat-card">
+    <div class="num">{{ total_employees }}</div>
+    <div class="lbl">Employees</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">{{ total_managers }}</div>
+    <div class="lbl">Managers</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">{{ completed }}</div>
+    <div class="lbl">Profiles completed</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">{{ pending }}</div>
+    <div class="lbl">Profiles pending</div>
+  </div>
+  <div class="stat-card">
+    <a href="{{ url_for('admin_leave_requests') }}" style="text-decoration:none; color:inherit; display:block;">
+      <div class="num">{{ pending_leaves }}</div>
+      <div class="lbl">Leave requests pending</div>
+    </a>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Recently added</h3>
+  <p class="card-sub">The newest people added to the SaarthiEV HRMS Portal.</p>
+
+  {% if recent %}
+  <table class="list">
+    <thead>
+      <tr><th>Name</th><th>Employee ID</th><th>Role</th><th>Status</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for u in recent %}
+      <tr>
+        <td>{{ u.profile.full_name if u.profile else '—' }}</td>
+        <td>{{ u.employee_code }}</td>
+        <td><span class="badge badge-{{ u.role }}">{{ u.role }}</span></td>
+        <td>
+          {% if u.profile and u.profile.profile_completed %}
+            <span class="badge badge-complete">Complete</span>
+          {% else %}
+            <span class="badge badge-pending">Pending</span>
+          {% endif %}
+        </td>
+        <td><a href="{{ url_for('admin_view_employee', user_id=u.id) }}">View</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <div class="sq"></div>
+    No employees yet. Add your first one to get started.
+  </div>
+  {% endif %}
+</div>
+
+<a href="{{ url_for('admin_create_employee') }}" class="btn btn-primary">Add employee</a>
+<a href="{{ url_for('admin_leave_requests') }}" class="btn btn-outline">Review leave requests</a>
+{% endblock %}

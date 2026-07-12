@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Managers{% endblock %}
+{% block page_title %}Managers{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h3>All managers</h3>
+  <p class="card-sub">Each manager can see the full details of everyone reporting to them, and also fill in their own profile as an employee.</p>
+
+  {% if managers %}
+  <table class="list">
+    <thead>
+      <tr><th>Name</th><th>Employee ID</th><th>Team size</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for m in managers %}
+      <tr>
+        <td>{{ m.profile.full_name if m.profile else '—' }}</td>
+        <td>{{ m.employee_code }}</td>
+        <td>{{ team_counts.get(m.id, 0) }}</td>
+        <td><a href="{{ url_for('admin_view_employee', user_id=m.id) }}">View</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <div class="sq"></div>
+    No managers yet. Add one from the "Add employee" page and choose account type "Manager".
+  </div>
+  {% endif %}
+</div>
+
+<a href="{{ url_for('admin_create_employee') }}" class="btn btn-primary">Add manager</a>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Overview{% endblock %}
+{% block page_title %}Manager overview{% endblock %}
+
+{% block content %}
+<div class="stat-row">
+  <div class="stat-card">
+    <div class="num">{{ team|length }}</div>
+    <div class="lbl">People reporting to you</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">{{ completed }}</div>
+    <div class="lbl">Profiles completed</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">{{ pending }}</div>
+    <div class="lbl">Profiles pending</div>
+  </div>
+  <div class="stat-card">
+    <a href="{{ url_for('manager_leave_requests') }}" style="text-decoration:none; color:inherit; display:block;">
+      <div class="num">{{ pending_leaves }}</div>
+      <div class="lbl">Leave requests pending</div>
+    </a>
+  </div>
+</div>
+
+{% if not current_user.profile.profile_completed %}
+<div class="help-banner">
+  Don't forget to complete your own profile — you're an employee too.
+  <a href="{{ url_for('employee_edit_profile') }}">Fill it in now →</a>
+</div>
+{% endif %}
+
+<div class="card">
+  <h3>Your team</h3>
+  <p class="card-sub">Everyone whose reporting manager is set to you.</p>
+
+  {% if team %}
+  <table class="list">
+    <thead>
+      <tr><th>Name</th><th>Employee ID</th><th>Designation</th><th>Status</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for p in team %}
+      <tr>
+        <td>{{ p.full_name }}</td>
+        <td>{{ p.user.employee_code }}</td>
+        <td>{{ p.designation or '—' }}</td>
+        <td>
+          {% if p.profile_completed %}<span class="badge badge-complete">Complete</span>
+          {% else %}<span class="badge badge-pending">Pending</span>{% endif %}
+        </td>
+        <td><a href="{{ url_for('manager_view_employee', user_id=p.user_id) }}">View</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <div class="sq"></div>
+    No one has been assigned to you yet. Once your administrator sets you as a reporting manager for an employee, they'll show up here.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ user.profile.full_name }}{% endblock %}
+{% block page_title %}Edit employee{% endblock %}
+
+{% block content %}
+<div class="help-banner">
+  Changing the reporting manager moves this person to a different manager's team —
+  their leave history and balances stay exactly as they are. Changing the Employee ID
+  changes their login — make sure to tell them the new one.
+</div>
+
+<div class="card" style="max-width: 640px;">
+  <form method="POST">
+    <div class="grid-2">
+      <div class="field">
+        <label for="full_name">Full name</label>
+        <input type="text" id="full_name" name="full_name" required
+               value="{{ form.full_name if form else user.profile.full_name }}">
+      </div>
+      <div class="field">
+        <label for="employee_code">Employee ID</label>
+        <input type="text" id="employee_code" name="employee_code" required style="text-transform:uppercase;"
+               value="{{ form.employee_code if form else user.employee_code }}">
+        <div class="hint">This is their login ID — changing it changes how they sign in.</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label for="designation">Designation</label>
+        <input type="text" id="designation" name="designation"
+               value="{{ form.designation if form else (user.profile.designation or '') }}">
+      </div>
+      <div class="field">
+        <label for="department">Department</label>
+        <input type="text" id="department" name="department"
+               value="{{ form.department if form else (user.profile.department or '') }}">
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label for="date_of_joining">Date of joining</label>
+        <input type="date" id="date_of_joining" name="date_of_joining"
+               value="{{ form.date_of_joining if form else (user.profile.date_of_joining.isoformat() if user.profile.date_of_joining else '') }}">
+      </div>
+      <div class="field">
+        <label for="role">Account type</label>
+        <select id="role" name="role">
+          <option value="employee" {{ 'selected' if (form.role if form else user.role) == 'employee' }}>Employee</option>
+          <option value="manager" {{ 'selected' if (form.role if form else user.role) == 'manager' }}>Manager</option>
+        </select>
+        <div class="hint">Can't switch a manager away from this if people still report to them.</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="reporting_manager_id">Reporting manager</label>
+      <select id="reporting_manager_id" name="reporting_manager_id">
+        <option value="">— No manager assigned —</option>
+        {% for m in managers %}
+          <option value="{{ m.id }}"
+            {{ 'selected' if (form.reporting_manager_id if form else (user.profile.reporting_manager_id|string if user.profile.reporting_manager_id else '')) == m.id|string }}>
+            {{ m.profile.full_name }} ({{ m.employee_code }})
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save changes</button>
+    <a href="{{ url_for('admin_view_employee', user_id=user.id) }}" class="btn btn-outline">Cancel</a>
+  </form>
+</div>
+{% endblock %}

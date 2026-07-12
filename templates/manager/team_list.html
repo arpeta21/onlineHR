@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}My team{% endblock %}
+{% block page_title %}My team{% endblock %}
+
+{% block content %}
+<div class="card">
+  {% if profiles %}
+  <table class="list">
+    <thead>
+      <tr><th>Name</th><th>Employee ID</th><th>Designation</th><th>Department</th><th>Status</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for p in profiles %}
+      <tr>
+        <td>{{ p.full_name }}</td>
+        <td>{{ p.user.employee_code }}</td>
+        <td>{{ p.designation or '—' }}</td>
+        <td>{{ p.department or '—' }}</td>
+        <td>
+          {% if p.profile_completed %}<span class="badge badge-complete">Complete</span>
+          {% else %}<span class="badge badge-pending">Pending</span>{% endif %}
+        </td>
+        <td><a href="{{ url_for('manager_view_employee', user_id=p.user_id) }}">View details</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <div class="sq"></div>
+    No team members assigned yet.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

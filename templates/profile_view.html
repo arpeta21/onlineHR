@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}{{ profile.full_name }}{% endblock %}
+{% block page_title %}Employee profile{% endblock %}
+
+{% block content %}
+<div class="profile-header">
+  <div class="avatar-circle">{{ profile.full_name[0]|upper if profile.full_name else '?' }}</div>
+  <div>
+    <div class="pname">{{ profile.full_name }}</div>
+    <div class="pmeta">
+      {{ profile.designation or 'No designation set' }}
+      {% if profile.department %} · {{ profile.department }}{% endif %}
+      · <span class="badge badge-{{ person.role }}">{{ person.role }}</span>
+      {% if profile.profile_completed %}
+        <span class="badge badge-complete">Complete</span>
+      {% else %}
+        <span class="badge badge-pending">Pending</span>
+      {% endif %}
+      {% if not person.is_active %}
+        <span class="badge" style="background:var(--rose-soft); color:var(--rose);">Deactivated</span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% if viewer == 'self' %}
+<a href="{{ url_for('employee_edit_profile') }}" class="btn btn-primary" style="margin-bottom: 22px;">
+  {{ 'Edit my profile' if profile.profile_completed else 'Complete my profile' }}
+</a>
+{% endif %}
+
+<div class="card">
+  <h3>Employment</h3>
+  <div class="profile-grid">
+    <div><div class="pi-label">Employee ID</div><div class="pi-value">{{ person.employee_code }}</div></div>
+    <div><div class="pi-label">Date of joining</div><div class="pi-value">{{ profile.date_of_joining.strftime('%d %b %Y') if profile.date_of_joining else '—' }}</div></div>
+    <div><div class="pi-label">Designation</div><div class="pi-value">{{ profile.designation or '—' }}</div></div>
+    <div><div class="pi-label">Department</div><div class="pi-value">{{ profile.department or '—' }}</div></div>
+    <div><div class="pi-label">Reporting manager</div><div class="pi-value">{{ profile.reporting_manager.profile.full_name if profile.reporting_manager else '—' }}</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Personal details</h3>
+  <div class="profile-grid">
+    <div><div class="pi-label">Date of birth</div><div class="pi-value">{{ profile.date_of_birth.strftime('%d %b %Y') if profile.date_of_birth else '—' }}</div></div>
+    <div><div class="pi-label">Gender</div><div class="pi-value">{{ profile.gender or '—' }}</div></div>
+    <div><div class="pi-label">Personal email</div><div class="pi-value">{{ profile.personal_email or '—' }}</div></div>
+    <div><div class="pi-label">Phone number</div><div class="pi-value">{{ profile.phone_number or '—' }}</div></div>
+    <div><div class="pi-label">Blood group</div><div class="pi-value">{{ profile.blood_group or '—' }}</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Identity documents</h3>
+  <div class="profile-grid">
+    <div><div class="pi-label">PAN number</div><div class="pi-value">{{ profile.pan_number or '—' }}</div></div>
+    <div><div class="pi-label">Aadhaar number</div><div class="pi-value">{{ profile.aadhaar_number or '—' }}</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Addresses</h3>
+  <div class="profile-grid">
+    <div>
+      <div class="pi-label">Current address</div>
+      <div class="pi-value">
+        {% if profile.current_address_line1 %}
+          {{ profile.current_address_line1 }}{% if profile.current_address_line2 %}, {{ profile.current_address_line2 }}{% endif %}<br>
+          {{ profile.current_city }}{% if profile.current_state %}, {{ profile.current_state }}{% endif %} {{ profile.current_pincode or '' }}
+        {% else %}—{% endif %}
+      </div>
+    </div>
+    <div>
+      <div class="pi-label">Permanent address</div>
+      <div class="pi-value">
+        {% if profile.permanent_address_line1 %}
+          {{ profile.permanent_address_line1 }}{% if profile.permanent_address_line2 %}, {{ profile.permanent_address_line2 }}{% endif %}<br>
+          {{ profile.permanent_city }}{% if profile.permanent_state %}, {{ profile.permanent_state }}{% endif %} {{ profile.permanent_pincode or '' }}
+        {% else %}—{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Bank details</h3>
+  <div class="profile-grid">
+    <div><div class="pi-label">Account number</div><div class="pi-value">{{ profile.bank_account_number or '—' }}</div></div>
+    <div><div class="pi-label">IFSC code</div><div class="pi-value">{{ profile.bank_ifsc_code or '—' }}</div></div>
+    <div><div class="pi-label">Bank name</div><div class="pi-value">{{ profile.bank_name or '—' }}</div></div>
+    <div><div class="pi-label">Branch</div><div class="pi-value">{{ profile.bank_branch or '—' }}</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Previous employment</h3>
+  <div class="profile-grid">
+    <div><div class="pi-label">Company</div><div class="pi-value">{{ profile.previous_company_name or '—' }}</div></div>
+    <div><div class="pi-label">Designation held</div><div class="pi-value">{{ profile.previous_designation or '—' }}</div></div>
+    <div><div class="pi-label">Employed from</div><div class="pi-value">{{ profile.previous_employment_from.strftime('%d %b %Y') if profile.previous_employment_from else '—' }}</div></div>
+    <div><div class="pi-label">Employed to</div><div class="pi-value">{{ profile.previous_employment_to.strftime('%d %b %Y') if profile.previous_employment_to else '—' }}</div></div>
+  </div>
+  <div style="margin-top: 16px;">
+    <div class="pi-label">Relieving letter</div>
+    {% if profile.relieving_letter_filename %}
+      <a href="{{ url_for('download_upload', user_id=person.id, filename=profile.relieving_letter_filename) }}" class="btn btn-outline btn-sm" style="margin-top:6px;">Download file</a>
+    {% else %}
+      <div class="pi-value">Not uploaded</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <h3>Emergency contact</h3>
+  <div class="profile-grid">
+    <div><div class="pi-label">Name</div><div class="pi-value">{{ profile.emergency_contact_name or '—' }}</div></div>
+    <div><div class="pi-label">Relation</div><div class="pi-value">{{ profile.emergency_contact_relation or '—' }}</div></div>
+    <div><div class="pi-label">Phone</div><div class="pi-value">{{ profile.emergency_contact_phone or '—' }}</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Family details</h3>
+  <div class="profile-grid">
+    <div><div class="pi-label">Spouse name</div><div class="pi-value">{{ profile.spouse_name or '—' }}</div></div>
+    <div><div class="pi-label">Spouse date of birth</div><div class="pi-value">{{ profile.spouse_dob.strftime('%d %b %Y') if profile.spouse_dob else '—' }}</div></div>
+  </div>
+  {% if profile.children %}
+  <div style="margin-top: 16px;">
+    <div class="pi-label" style="margin-bottom:8px;">Children</div>
+    <table class="list">
+      <thead><tr><th>Name</th><th>Date of birth</th></tr></thead>
+      <tbody>
+        {% for child in profile.children %}
+        <tr><td>{{ child.name }}</td><td>{{ child.date_of_birth.strftime('%d %b %Y') if child.date_of_birth else '—' }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+{% if viewer == 'admin' %}
+<a href="{{ url_for('admin_edit_employee', user_id=person.id) }}" class="btn btn-primary">Edit details</a>
+<form action="{{ url_for('admin_reset_password', user_id=person.id) }}" method="POST"
+      onsubmit="return confirm('Reset password for {{ person.employee_code }} to the default?');" style="display:inline;">
+  <button type="submit" class="btn btn-outline">Reset password</button>
+</form>
+{% if person.is_active %}
+<form action="{{ url_for('admin_deactivate_employee', user_id=person.id) }}" method="POST" style="display:inline;"
+      onsubmit="return confirm('Deactivate {{ profile.full_name }}? They will no longer be able to log in.');">
+  <button type="submit" class="btn btn-outline" style="color:var(--rose);">Deactivate</button>
+</form>
+{% else %}
+<form action="{{ url_for('admin_reactivate_employee', user_id=person.id) }}" method="POST" style="display:inline;">
+  <button type="submit" class="btn btn-outline">Reactivate</button>
+</form>
+{% endif %}
+<a href="{{ url_for('admin_employee_list') }}" class="btn btn-outline">Back to list</a>
+{% elif viewer == 'manager' %}
+<a href="{{ url_for('manager_team_list') }}" class="btn btn-outline">Back to my team</a>
+{% endif %}
+{% endblock %}

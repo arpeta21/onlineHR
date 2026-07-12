@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}All people{% endblock %}
+{% block page_title %}All people{% endblock %}
+
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 18px; gap: 16px;">
+  <form method="GET" style="flex-grow:1; max-width: 360px;">
+    <input type="text" name="q" value="{{ q }}" placeholder="Search by name or employee ID…">
+  </form>
+  <a href="{{ url_for('admin_create_employee') }}" class="btn btn-primary">Add employee</a>
+</div>
+
+<div class="card">
+  {% if people %}
+  <div class="table-scroll">
+  <table class="list">
+    <thead>
+      <tr>
+        <th>Name</th><th>Employee ID</th><th>Role</th><th>Designation</th>
+        <th>Reporting manager</th><th>Profile</th><th>Account</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in people %}
+      <tr {{ 'style="opacity:.55;"' if not u.is_active }}>
+        <td>{{ u.profile.full_name if u.profile else '—' }}</td>
+        <td>{{ u.employee_code }}</td>
+        <td><span class="badge badge-{{ u.role }}">{{ u.role }}</span></td>
+        <td>{{ u.profile.designation or '—' }}</td>
+        <td>
+          {% if u.profile and u.profile.reporting_manager %}
+            {{ u.profile.reporting_manager.profile.full_name }}
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          {% if u.profile and u.profile.profile_completed %}
+            <span class="badge badge-complete">Complete</span>
+          {% else %}
+            <span class="badge badge-pending">Pending</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if u.is_active %}
+            <span class="badge badge-complete">Active</span>
+          {% else %}
+            <span class="badge" style="background:var(--rose-soft); color:var(--rose);">Deactivated</span>
+          {% endif %}
+        </td>
+        <td>
+          <div class="row-actions">
+            <a href="{{ url_for('admin_view_employee', user_id=u.id) }}">View</a>
+            <a href="{{ url_for('admin_edit_employee', user_id=u.id) }}">Edit</a>
+            <form action="{{ url_for('admin_reset_password', user_id=u.id) }}" method="POST"
+                  onsubmit="return confirm('Reset password for {{ u.employee_code }} to the default?');">
+              <button type="submit" class="link-btn">Reset pwd</button>
+            </form>
+            {% if u.is_active %}
+            <form action="{{ url_for('admin_deactivate_employee', user_id=u.id) }}" method="POST"
+                  onsubmit="return confirm('Deactivate {{ u.profile.full_name }}? They will no longer be able to log in.');">
+              <button type="submit" class="link-btn" style="color:var(--rose);">Deactivate</button>
+            </form>
+            {% else %}
+            <form action="{{ url_for('admin_reactivate_employee', user_id=u.id) }}" method="POST">
+              <button type="submit" class="link-btn">Reactivate</button>
+            </form>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="sq"></div>
+    {% if q %}No one matched "{{ q }}".{% else %}No employees added yet.{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

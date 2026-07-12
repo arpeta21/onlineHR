@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Apply for leave{% endblock %}
+{% block page_title %}Apply for leave{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 520px;">
+  <form method="POST">
+    <div class="field">
+      <label for="leave_type_id">Leave type</label>
+      <select id="leave_type_id" name="leave_type_id" required>
+        <option value="">Select…</option>
+        {% for lt in leave_types %}
+          <option value="{{ lt.id }}" {{ 'selected' if form and form.leave_type_id == lt.id|string }}>
+            {{ lt.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label for="start_date">From</label>
+        <input type="date" id="start_date" name="start_date" required
+               value="{{ form.start_date if form else '' }}">
+      </div>
+      <div class="field">
+        <label for="end_date">To</label>
+        <input type="date" id="end_date" name="end_date" required
+               value="{{ form.end_date if form else '' }}">
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="reason">Reason</label>
+      <textarea id="reason" name="reason" rows="3" placeholder="Briefly describe the reason for leave">{{ form.reason if form else '' }}</textarea>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Submit request</button>
+    <a href="{{ url_for('my_leaves') }}" class="btn btn-outline">Cancel</a>
+  </form>
+</div>
+{% endblock %}

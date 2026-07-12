@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Leave requests{% endblock %}
+{% block page_title %}Leave requests{% endblock %}
+
+{% block content %}
+<div class="help-banner">
+  Requests normally go to each employee's reporting manager. As admin, you can see everything
+  here and step in to approve or reject directly if needed.
+</div>
+
+<div style="display:flex; gap:8px; margin-bottom: 18px;">
+  {% for s, label in [('pending','Pending'), ('approved','Approved'), ('rejected','Rejected'), ('all','All')] %}
+    <a href="{{ url_for('admin_leave_requests', status=s) }}"
+       class="btn btn-sm {{ 'btn-primary' if status_filter == s else 'btn-outline' }}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<div class="card">
+  {% if applications %}
+  <table class="list">
+    <thead>
+      <tr>
+        <th>Employee</th><th>Leave type</th><th>Dates</th><th>Days</th>
+        <th>Reason</th><th>Status</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in applications %}
+      <tr>
+        <td>{{ a.user.profile.full_name }}<br><span style="color:var(--ink-soft); font-size:12px;">{{ a.user.employee_code }}</span></td>
+        <td>{{ a.leave_type.name }}</td>
+        <td>{{ a.start_date.strftime('%d %b %Y') }} – {{ a.end_date.strftime('%d %b %Y') }}</td>
+        <td>{{ a.days|round(1) }}</td>
+        <td style="max-width:200px;">{{ a.reason or '—' }}</td>
+        <td>
+          {% if a.status == 'pending' %}<span class="badge badge-pending">Pending</span>
+          {% elif a.status == 'approved' %}<span class="badge badge-complete">Approved</span>
+          {% elif a.status == 'rejected' %}<span class="badge" style="background:var(--rose-soft); color:var(--rose);">Rejected</span>
+          {% else %}<span class="badge" style="background:var(--line); color:var(--ink-soft);">Cancelled</span>{% endif %}
+        </td>
+        <td style="white-space:nowrap;">
+          {% if a.status == 'pending' %}
+          <form method="POST" action="{{ url_for('admin_decide_leave', app_id=a.id) }}" style="display:inline;">
+            <input type="hidden" name="decision" value="approved">
+            <button type="submit" class="btn btn-outline btn-sm">Approve</button>
+          </form>
+          <form method="POST" action="{{ url_for('admin_decide_leave', app_id=a.id) }}" style="display:inline;"
+                onsubmit="return confirm('Reject this leave request?');">
+            <input type="hidden" name="decision" value="rejected">
+            <button type="submit" class="btn btn-outline btn-sm" style="color:var(--rose);">Reject</button>
+          </form>
+          {% else %}
+            <span style="color:var(--ink-soft); font-size:13px;">
+              {% if a.decided_by %}by {{ a.decided_by.profile.full_name }}{% endif %}
+            </span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <div class="sq"></div>
+    No {{ status_filter }} leave requests.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

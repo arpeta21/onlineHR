@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+{% block title %}Edit profile{% endblock %}
+{% block page_title %}Complete your profile{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 760px;">
+
+  <div class="section-title">Already on file</div>
+  <div class="section-sub">Entered by your administrator — you can't edit these.</div>
+  <div class="grid-2" style="margin-bottom: 8px;">
+    <div class="field"><label>Full name</label><div class="locked-field">{{ profile.full_name }}</div></div>
+    <div class="field"><label>Employee ID</label><div class="locked-field">{{ current_user.employee_code }}</div></div>
+    <div class="field"><label>Designation</label><div class="locked-field">{{ profile.designation or '—' }}</div></div>
+    <div class="field"><label>Date of joining</label><div class="locked-field">{{ profile.date_of_joining.strftime('%d %b %Y') if profile.date_of_joining else '—' }}</div></div>
+    <div class="field"><label>Department</label><div class="locked-field">{{ profile.department or '—' }}</div></div>
+    <div class="field"><label>Reporting manager</label><div class="locked-field">{{ profile.reporting_manager.profile.full_name if profile.reporting_manager else '—' }}</div></div>
+  </div>
+
+  <form method="POST" enctype="multipart/form-data">
+
+    <div class="section-title">Personal details</div>
+    <div class="section-sub">Basic information about you.</div>
+    <div class="grid-2">
+      <div class="field">
+        <label for="date_of_birth">Date of birth</label>
+        <input type="date" id="date_of_birth" name="date_of_birth"
+               value="{{ profile.date_of_birth.isoformat() if profile.date_of_birth else '' }}">
+      </div>
+      <div class="field">
+        <label for="gender">Gender</label>
+        <select id="gender" name="gender">
+          <option value="">Select…</option>
+          {% for g in ['Male', 'Female', 'Other', 'Prefer not to say'] %}
+            <option value="{{ g }}" {{ 'selected' if profile.gender == g }}>{{ g }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="personal_email">Personal email</label>
+        <input type="email" id="personal_email" name="personal_email" value="{{ profile.personal_email or '' }}">
+      </div>
+      <div class="field">
+        <label for="phone_number">Phone number</label>
+        <input type="tel" id="phone_number" name="phone_number" value="{{ profile.phone_number or '' }}">
+      </div>
+      <div class="field">
+        <label for="blood_group">Blood group</label>
+        <input type="text" id="blood_group" name="blood_group" placeholder="e.g. O+" value="{{ profile.blood_group or '' }}">
+      </div>
+    </div>
+
+    <div class="section-title">Identity documents</div>
+    <div class="section-sub">Used for statutory and payroll records.</div>
+    <div class="grid-2">
+      <div class="field">
+        <label for="pan_number">PAN number</label>
+        <input type="text" id="pan_number" name="pan_number" placeholder="ABCDE1234F" maxlength="10"
+               value="{{ profile.pan_number or '' }}" style="text-transform:uppercase;">
+      </div>
+      <div class="field">
+        <label for="aadhaar_number">Aadhaar number</label>
+        <input type="text" id="aadhaar_number" name="aadhaar_number" placeholder="12-digit number" maxlength="14"
+               value="{{ profile.aadhaar_number or '' }}">
+      </div>
+    </div>
+
+    <div class="section-title">Current address</div>
+    <div class="section-sub">Where you currently live.</div>
+    <div class="field">
+      <label for="current_address_line1">Address line 1</label>
+      <input type="text" id="current_address_line1" name="current_address_line1" value="{{ profile.current_address_line1 or '' }}">
+    </div>
+    <div class="field">
+      <label for="current_address_line2">Address line 2</label>
+      <input type="text" id="current_address_line2" name="current_address_line2" value="{{ profile.current_address_line2 or '' }}">
+    </div>
+    <div class="grid-3">
+      <div class="field">
+        <label for="current_city">City</label>
+        <input type="text" id="current_city" name="current_city" value="{{ profile.current_city or '' }}">
+      </div>
+      <div class="field">
+        <label for="current_state">State</label>
+        <input type="text" id="current_state" name="current_state" value="{{ profile.current_state or '' }}">
+      </div>
+      <div class="field">
+        <label for="current_pincode">Pincode</label>
+        <input type="text" id="current_pincode" name="current_pincode" value="{{ profile.current_pincode or '' }}">
+      </div>
+    </div>
+
+    <div class="section-title">Permanent address</div>
+    <div class="section-sub">Your permanent / home town address.</div>
+    <div class="checkbox-row">
+      <input type="checkbox" id="same_as_current" name="same_as_current"
+             {{ 'checked' if profile.same_as_current }} onchange="togglePermanent()">
+      <label for="same_as_current">Same as current address</label>
+    </div>
+    <div id="permanent-fields">
+      <div class="field">
+        <label for="permanent_address_line1">Address line 1</label>
+        <input type="text" id="permanent_address_line1" name="permanent_address_line1" value="{{ profile.permanent_address_line1 or '' }}">
+      </div>
+      <div class="field">
+        <label for="permanent_address_line2">Address line 2</label>
+        <input type="text" id="permanent_address_line2" name="permanent_address_line2" value="{{ profile.permanent_address_line2 or '' }}">
+      </div>
+      <div class="grid-3">
+        <div class="field">
+          <label for="permanent_city">City</label>
+          <input type="text" id="permanent_city" name="permanent_city" value="{{ profile.permanent_city or '' }}">
+        </div>
+        <div class="field">
+          <label for="permanent_state">State</label>
+          <input type="text" id="permanent_state" name="permanent_state" value="{{ profile.permanent_state or '' }}">
+        </div>
+        <div class="field">
+          <label for="permanent_pincode">Pincode</label>
+          <input type="text" id="permanent_pincode" name="permanent_pincode" value="{{ profile.permanent_pincode or '' }}">
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">Bank details</div>
+    <div class="section-sub">For salary credit.</div>
+    <div class="grid-2">
+      <div class="field">
+        <label for="bank_account_number">Account number</label>
+        <input type="text" id="bank_account_number" name="bank_account_number" value="{{ profile.bank_account_number or '' }}">
+      </div>
+      <div class="field">
+        <label for="bank_ifsc_code">IFSC code</label>
+        <input type="text" id="bank_ifsc_code" name="bank_ifsc_code" placeholder="ABCD0123456" maxlength="11"
+               value="{{ profile.bank_ifsc_code or '' }}" style="text-transform:uppercase;">
+      </div>
+      <div class="field">
+        <label for="bank_name">Bank name</label>
+        <input type="text" id="bank_name" name="bank_name" value="{{ profile.bank_name or '' }}">
+      </div>
+      <div class="field">
+        <label for="bank_branch">Branch</label>
+        <input type="text" id="bank_branch" name="bank_branch" value="{{ profile.bank_branch or '' }}">
+      </div>
+    </div>
+
+    <div class="section-title">Previous employment</div>
+    <div class="section-sub">If you're joining from another company.</div>
+    <div class="grid-2">
+      <div class="field">
+        <label for="previous_company_name">Company name</label>
+        <input type="text" id="previous_company_name" name="previous_company_name" value="{{ profile.previous_company_name or '' }}">
+      </div>
+      <div class="field">
+        <label for="previous_designation">Designation held</label>
+        <input type="text" id="previous_designation" name="previous_designation" value="{{ profile.previous_designation or '' }}">
+      </div>
+      <div class="field">
+        <label for="previous_employment_from">Employed from</label>
+        <input type="date" id="previous_employment_from" name="previous_employment_from"
+               value="{{ profile.previous_employment_from.isoformat() if profile.previous_employment_from else '' }}">
+      </div>
+      <div class="field">
+        <label for="previous_employment_to">Employed to</label>
+        <input type="date" id="previous_employment_to" name="previous_employment_to"
+               value="{{ profile.previous_employment_to.isoformat() if profile.previous_employment_to else '' }}">
+      </div>
+    </div>
+    <div class="field">
+      <label for="relieving_letter">Relieving letter (PDF, PNG or JPG)</label>
+      <input type="file" id="relieving_letter" name="relieving_letter" accept=".pdf,.png,.jpg,.jpeg">
+      {% if profile.relieving_letter_filename %}
+        <div class="hint">Currently on file: {{ profile.relieving_letter_filename.split('_', 2)[-1] }} — uploading a new file will replace it.</div>
+      {% endif %}
+    </div>
+
+    <div class="section-title">Emergency contact</div>
+    <div class="grid-3">
+      <div class="field">
+        <label for="emergency_contact_name">Name</label>
+        <input type="text" id="emergency_contact_name" name="emergency_contact_name" value="{{ profile.emergency_contact_name or '' }}">
+      </div>
+      <div class="field">
+        <label for="emergency_contact_relation">Relation</label>
+        <input type="text" id="emergency_contact_relation" name="emergency_contact_relation" placeholder="e.g. Father" value="{{ profile.emergency_contact_relation or '' }}">
+      </div>
+      <div class="field">
+        <label for="emergency_contact_phone">Phone</label>
+        <input type="tel" id="emergency_contact_phone" name="emergency_contact_phone" value="{{ profile.emergency_contact_phone or '' }}">
+      </div>
+    </div>
+
+    <div class="section-title">Family details</div>
+    <div class="section-sub">Spouse and children, if applicable.</div>
+    <div class="grid-2">
+      <div class="field">
+        <label for="spouse_name">Spouse name</label>
+        <input type="text" id="spouse_name" name="spouse_name" value="{{ profile.spouse_name or '' }}">
+      </div>
+      <div class="field">
+        <label for="spouse_dob">Spouse date of birth</label>
+        <input type="date" id="spouse_dob" name="spouse_dob"
+               value="{{ profile.spouse_dob.isoformat() if profile.spouse_dob else '' }}">
+      </div>
+    </div>
+
+    <label style="display:block; font-size: 12.5px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color: var(--ink-soft); margin: 14px 0 8px;">Children</label>
+    <div id="children-wrap">
+      {% for child in profile.children %}
+      <div class="child-row">
+        <div class="field">
+          <input type="text" name="child_name" placeholder="Child's name" value="{{ child.name }}">
+        </div>
+        <div class="field">
+          <input type="date" name="child_dob" value="{{ child.date_of_birth.isoformat() if child.date_of_birth else '' }}">
+        </div>
+        <button type="button" class="btn btn-outline btn-sm remove-child" onclick="this.closest('.child-row').remove()">Remove</button>
+      </div>
+      {% endfor %}
+    </div>
+    <button type="button" class="btn btn-outline btn-sm" onclick="addChildRow()" style="margin-bottom: 24px;">+ Add a child</button>
+
+    <div style="border-top: 1px solid var(--line); padding-top: 20px;">
+      <button type="submit" class="btn btn-primary">Save profile</button>
+      <a href="{{ url_for('employee_view_own_profile') }}" class="btn btn-outline">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<template id="child-row-template">
+  <div class="child-row">
+    <div class="field"><input type="text" name="child_name" placeholder="Child's name"></div>
+    <div class="field"><input type="date" name="child_dob"></div>
+    <button type="button" class="btn btn-outline btn-sm remove-child" onclick="this.closest('.child-row').remove()">Remove</button>
+  </div>
+</template>
+
+<script>
+  function addChildRow() {
+    const tpl = document.getElementById('child-row-template');
+    document.getElementById('children-wrap').appendChild(tpl.content.cloneNode(true));
+  }
+
+  function togglePermanent() {
+    const checked = document.getElementById('same_as_current').checked;
+    document.getElementById('permanent-fields').style.display = checked ? 'none' : 'block';
+  }
+  togglePermanent();
+</script>
+{% endblock %}

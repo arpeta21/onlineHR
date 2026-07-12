@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+  <title>{% block title %}HRMS{% endblock %} — SaarthiEV Mobility</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-logo-chip"><img src="{{ url_for('static', filename='img/logo.png') }}" alt="SaarthiEV Mobility"></span>
+        <span class="word">SaarthiEV<br>HRMS Portal</span>
+      </div>
+      <nav>
+        {% if current_user.role == 'admin' %}
+          <a href="{{ url_for('admin_dashboard') }}" class="{{ 'active' if request.endpoint == 'admin_dashboard' }}">Overview</a>
+          <a href="{{ url_for('admin_employee_list') }}" class="{{ 'active' if request.endpoint in ['admin_employee_list','admin_view_employee'] }}">All people</a>
+          <a href="{{ url_for('admin_create_employee') }}" class="{{ 'active' if request.endpoint == 'admin_create_employee' }}">Add employee</a>
+          <a href="{{ url_for('admin_manager_list') }}" class="{{ 'active' if request.endpoint == 'admin_manager_list' }}">Managers</a>
+          <a href="{{ url_for('admin_leave_types') }}" class="{{ 'active' if request.endpoint == 'admin_leave_types' }}">Leave types</a>
+          <a href="{{ url_for('admin_leave_requests') }}" class="{{ 'active' if request.endpoint == 'admin_leave_requests' }}">Leave requests</a>
+        {% elif current_user.role == 'manager' %}
+          <a href="{{ url_for('manager_dashboard') }}" class="{{ 'active' if request.endpoint == 'manager_dashboard' }}">Overview</a>
+          <a href="{{ url_for('manager_team_list') }}" class="{{ 'active' if request.endpoint in ['manager_team_list','manager_view_employee'] }}">My team</a>
+          <a href="{{ url_for('manager_leave_requests') }}" class="{{ 'active' if request.endpoint == 'manager_leave_requests' }}">Team leave requests</a>
+          <a href="{{ url_for('employee_view_own_profile') }}" class="{{ 'active' if request.endpoint in ['employee_view_own_profile','employee_edit_profile'] }}">My profile</a>
+          <a href="{{ url_for('my_leaves') }}" class="{{ 'active' if request.endpoint in ['my_leaves','apply_leave'] }}">My leaves</a>
+        {% else %}
+          <a href="{{ url_for('employee_dashboard') }}" class="{{ 'active' if request.endpoint == 'employee_dashboard' }}">Overview</a>
+          <a href="{{ url_for('employee_view_own_profile') }}" class="{{ 'active' if request.endpoint in ['employee_view_own_profile','employee_edit_profile'] }}">My profile</a>
+          <a href="{{ url_for('my_leaves') }}" class="{{ 'active' if request.endpoint in ['my_leaves','apply_leave'] }}">My leaves</a>
+        {% endif %}
+      </nav>
+      <div class="who">
+        <div class="name">{{ current_user.profile.full_name if current_user.profile else current_user.employee_code }}</div>
+        <div class="role">{{ current_user.role }} · {{ current_user.employee_code }}</div>
+        <form action="{{ url_for('logout') }}" method="get">
+          <button type="submit">Log out</button>
+        </form>
+      </div>
+    </aside>
+
+    <div class="main">
+      <div class="topbar">
+        <h2 style="margin:0;">{% block page_title %}{% endblock %}</h2>
+        <div></div>
+      </div>
+      <div class="content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="flash flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+      </div>
+    </div>
+  </div>
+</body>
+</html>

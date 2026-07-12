@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Add employee{% endblock %}
+{% block page_title %}Add employee{% endblock %}
+
+{% block content %}
+<div class="help-banner">
+  Fill in only what HR already knows. The employee will log in with the ID and temporary password
+  shown after saving, and complete the rest of their own profile — address, ID documents, bank
+  details, family details, and their relieving letter.
+</div>
+
+<div class="card" style="max-width: 640px;">
+  <form method="POST">
+    <div class="field">
+      <label for="full_name">Full name</label>
+      <input type="text" id="full_name" name="full_name" required value="{{ form.full_name or '' }}">
+    </div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label for="designation">Designation</label>
+        <input type="text" id="designation" name="designation" placeholder="e.g. Software Engineer" value="{{ form.designation or '' }}">
+      </div>
+      <div class="field">
+        <label for="department">Department</label>
+        <input type="text" id="department" name="department" placeholder="e.g. Engineering" value="{{ form.department or '' }}">
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label for="date_of_joining">Date of joining</label>
+        <input type="date" id="date_of_joining" name="date_of_joining" value="{{ form.date_of_joining or '' }}">
+      </div>
+      <div class="field">
+        <label for="role">Account type</label>
+        <select id="role" name="role">
+          <option value="employee" {{ 'selected' if form.role == 'employee' }}>Employee</option>
+          <option value="manager" {{ 'selected' if form.role == 'manager' }}>Manager</option>
+        </select>
+        <div class="hint">Managers get an extra tab to view their own team's details.</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="reporting_manager_id">Reporting manager</label>
+      <select id="reporting_manager_id" name="reporting_manager_id">
+        <option value="">— No manager assigned yet —</option>
+        {% for m in managers %}
+          <option value="{{ m.id }}" {{ 'selected' if form.reporting_manager_id == m.id|string }}>
+            {{ m.profile.full_name }} ({{ m.employee_code }})
+          </option>
+        {% endfor %}
+      </select>
+      {% if not managers %}
+        <div class="hint">No managers exist yet. Create a manager account first if this employee needs one.</div>
+      {% endif %}
+    </div>
+
+    <div class="field">
+      <label for="temp_password">Temporary password</label>
+      <input type="text" id="temp_password" name="temp_password" placeholder="Welcome@123 (default)">
+      <div class="hint">The employee must change this on first login. Leave blank to use the default.</div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Create employee</button>
+    <a href="{{ url_for('admin_employee_list') }}" class="btn btn-outline">Cancel</a>
+  </form>
+</div>
+{% endblock %}
