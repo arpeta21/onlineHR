@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Candidate Screening{% endblock %}
+{% block page_title %}Edit Candidate Screening Details & Recalculate Match Score{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 750px; margin: 0 auto;">
+    <h3 style="margin-top: 0; color: #0f172a;">✏️ Edit Candidate Screening Details</h3>
+    <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">
+        Update candidate information against the requisition JD (<strong>{{ candidate.requisition.title if candidate.requisition else 'Job Requisition' }}</strong>).
+    </p>
+
+    <form method="post">
+        <div class="grid-2">
+            <div class="field">
+                <label for="full_name">Candidate Full Name *</label>
+                <input type="text" id="full_name" name="full_name" value="{{ candidate.full_name }}" required>
+            </div>
+            <div class="field">
+                <label for="email">Candidate Email *</label>
+                <input type="email" id="email" name="email" value="{{ candidate.email }}" required>
+            </div>
+        </div>
+
+        <div class="grid-3">
+            <div class="field">
+                <label for="phone">Phone Number</label>
+                <input type="text" id="phone" name="phone" value="{{ candidate.phone or '' }}">
+            </div>
+            <div class="field">
+                <label for="total_exp_years">Total Experience (Years) *</label>
+                <input type="number" step="0.5" id="total_exp_years" name="total_exp_years" value="{{ candidate.total_exp_years }}" required style="font-weight: 700;">
+            </div>
+            <div class="field">
+                <label for="current_company">Current Company</label>
+                <input type="text" id="current_company" name="current_company" value="{{ candidate.current_company or '' }}">
+            </div>
+        </div>
+
+        <div class="field">
+            <label for="current_designation">Current Designation</label>
+            <input type="text" id="current_designation" name="current_designation" value="{{ candidate.current_designation or '' }}">
+        </div>
+
+        <div class="field">
+            <label for="key_skills">Candidate Key Skills (Comma-Separated) *</label>
+            <input type="text" id="key_skills" name="key_skills" value="{{ candidate.key_skills or '' }}" required style="font-weight: 600;">
+            <div class="hint">Updating skills will automatically recalculate the Match % Score against the JD skills ({{ candidate.requisition.key_skills if candidate.requisition else '' }}).</div>
+        </div>
+
+        <div class="field">
+            <label for="hr_notes">Screening Notes & Remarks</label>
+            <textarea id="hr_notes" name="hr_notes" rows="3">{{ candidate.hr_notes or '' }}</textarea>
+        </div>
+
+        <div style="display: flex; gap: 15px; margin-top: 25px;">
+            <button type="submit" class="btn btn-primary" style="padding: 10px 24px; font-weight: 700;">
+                💾 Save Changes & Recalculate Match Score
+            </button>
+            <a href="{{ url_for('cv_screener') }}" class="btn btn-outline">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

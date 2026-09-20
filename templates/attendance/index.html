@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}Attendance Calendar{% endblock %}
+{% block page_title %}Daily Attendance & Historical Tracking{% endblock %}
+
+{% block content %}
+<!-- Clock In / Clock Out Card -->
+<div class="card" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border-radius: 12px; margin-bottom: 25px; padding: 25px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+        <div>
+            <h3 style="margin: 0 0 8px 0; color: #f8fafc; font-size: 20px;">Today's Live Attendance</h3>
+            <p style="margin: 0; color: #94a3b8; font-size: 14px;">Today: <strong>{{ today_att.date.strftime('%A, %d %B %Y') if today_att else 'Today' }}</strong></p>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 15px;">
+            {% if not today_att or not today_att.clock_in %}
+            <form action="{{ url_for('attendance_clock_in') }}" method="post" style="display: inline-block;">
+                <input type="text" name="notes" placeholder="Notes / location (optional)" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #475569; background: #334155; color: white; margin-right: 10px;">
+                <button type="submit" class="btn btn-primary" style="background: #22c55e; border: none; padding: 10px 24px; font-weight: 700;">⏱️ Clock In</button>
+            </form>
+            {% elif not today_att.clock_out %}
+            <div style="text-align: right; margin-right: 15px;">
+                <span style="color: #4ade80; font-weight: 700; display: block;">Clocked In: {{ today_att.clock_in.strftime('%I:%M %p') }}</span>
+                <span style="color: #94a3b8; font-size: 12px;">Status: {{ today_att.status }}</span>
+            </div>
+            <form action="{{ url_for('attendance_clock_out') }}" method="post" style="display: inline-block;">
+                <input type="text" name="notes" placeholder="Clock out notes (optional)" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #475569; background: #334155; color: white; margin-right: 10px;">
+                <button type="submit" class="btn btn-primary" style="background: #ef4444; border: none; padding: 10px 24px; font-weight: 700;">🏁 Clock Out</button>
+            </form>
+            {% else %}
+            <div style="background: #334155; padding: 12px 20px; border-radius: 8px; text-align: center;">
+                <span style="color: #4ade80; font-weight: 700; display: block; font-size: 15px;">✅ Completed Today</span>
+                <span style="color: #cbd5e1; font-size: 13px;">In: {{ today_att.clock_in.strftime('%I:%M %p') }} | Out: {{ today_att.clock_out.strftime('%I:%M %p') }} ({{ today_att.work_duration }})</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Month / Year Navigator Bar -->
+<div class="card" style="margin-bottom: 25px; padding: 15px 20px;">
+    <form method="get" action="{{ url_for('attendance_index') }}" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+        <label style="font-weight: 700; color: #1e293b;">📅 Select Attendance Month / History:</label>
+        <select name="month" style="padding: 6px 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
+            {% for m in range(1, 13) %}
+            <option value="{{ m }}" {{ 'selected' if m == calendar_data.month }}>
+                {{ ['January','February','March','April','May','June','July','August','September','October','November','December'][m-1] }}
+            </option>
+            {% endfor %}
+        </select>
+        <input type="number" name="year" value="{{ calendar_data.year }}" style="width: 100px; padding: 6px 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
+        <button type="submit" class="btn btn-primary" style="padding: 6px 16px;">View Attendance History</button>
+    </form>
+</div>
+
+<!-- Summary Cards -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px;">
+    <div class="card" style="border-left: 4px solid #22c55e; padding: 15px;">
+        <span style="font-size: 13px; color: #64748b; font-weight: 600;">Present Days</span>
+        <h2 style="margin: 5px 0 0 0; color: #166534;">{{ calendar_data.present_count }}</h2>
+    </div>
+    <div class="card" style="border-left: 4px solid #eab308; padding: 15px;">
+        <span style="font-size: 13px; color: #64748b; font-weight: 600;">Late Arrivals</span>
+        <h2 style="margin: 5px 0 0 0; color: #854d0e;">{{ calendar_data.late_count }}</h2>
+    </div>
+    <div class="card" style="border-left: 4px solid #f97316; padding: 15px;">
+        <span style="font-size: 13px; color: #64748b; font-weight: 600;">Half Days</span>
+        <h2 style="margin: 5px 0 0 0; color: #c2410c;">{{ calendar_data.half_day_count }}</h2>
+    </div>
+    <div class="card" style="border-left: 4px solid #ef4444; padding: 15px;">
+        <span style="font-size: 13px; color: #64748b; font-weight: 600;">Unapproved Absences</span>
+        <h2 style="margin: 5px 0 0 0; color: #991b1b;">{{ calendar_data.absent_count }}</h2>
+    </div>
+    <div class="card" style="border-left: 4px solid #3b82f6; padding: 15px;">
+        <span style="font-size: 13px; color: #64748b; font-weight: 600;">Missed / Not Marked</span>
+        <h2 style="margin: 5px 0 0 0; color: #1d4ed8;">{{ calendar_data.missed_count }}</h2>
+    </div>
+</div>
+
+<!-- Apply Backdated Attendance Card -->
+<div class="card" style="margin-bottom: 25px; border-top: 4px solid #2563eb;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3 style="margin: 0;">📌 Apply Backdated Attendance (Regularization Request)</h3>
+        {% if current_user.profile and current_user.profile.is_founding_member %}
+        <span style="background: #fef08a; color: #854d0e; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 700;">
+            👑 Founding Member (Instant Self-Approval Active)
+        </span>
+        {% endif %}
+    </div>
+
+    <form method="post" action="{{ url_for('attendance_regularize') }}">
+        <div style="display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 150px;">
+                <label style="font-weight: 600; display: block; margin-bottom: 5px;">Missed / Past Date:</label>
+                <input type="date" id="reg_date" name="date" required style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
+            </div>
+            <div style="width: 130px;">
+                <label style="font-weight: 600; display: block; margin-bottom: 5px;">Clock In Time:</label>
+                <input type="time" name="clock_in_time" value="09:30" style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
+            </div>
+            <div style="width: 130px;">
+                <label style="font-weight: 600; display: block; margin-bottom: 5px;">Clock Out Time:</label>
+                <input type="time" name="clock_out_time" value="18:00" style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
+            </div>
+            <div style="flex: 1; min-width: 150px;">
+                <label style="font-weight: 600; display: block; margin-bottom: 5px;">Requested Status:</label>
+                <select name="status" style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
+                    <option value="Present">Present</option>
+                    <option value="Late">Late</option>
+                    <option value="Half Day">Half Day</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <label style="font-weight: 600; display: block; margin-bottom: 5px;">Reason for Backdated Request:</label>
+            <input type="text" name="reason" placeholder="e.g. Forgot to clock in / Outdoor client visit / Technical issue" required style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="padding: 8px 20px; font-weight: 700;">Submit Backdated Request to Manager</button>
+    </form>
+</div>
+
+<!-- Complete Month Attendance Calendar Table -->
+<div class="card" style="margin-bottom: 25px;">
+    <h3 style="margin-top: 0; margin-bottom: 15px;">Full-Month Attendance Matrix — {{ calendar_data.month_name }} {{ calendar_data.year }}</h3>
+    <table class="list" style="font-size: 13px;">
+        <thead>
+            <tr style="background: #f8fafc;">
+                <th>Date</th>
+                <th>Day</th>
+                <th>Clock In</th>
+                <th>Clock Out</th>
+                <th>Duration</th>
+                <th>Status</th>
+                <th>Action / Regularization</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for day in calendar_data.calendar_days %}
+            <tr style="{% if day.is_sunday %}background: #f8fafc;{% endif %}">
+                <td style="font-weight: 700; color: #0f172a;">{{ day.date.strftime('%d-%b-%Y') }}</td>
+                <td style="font-weight: 600; color: #475569;">{{ day.day_name }}</td>
+                <td>{{ day.attendance.clock_in.strftime('%I:%M %p') if day.attendance and day.attendance.clock_in else '-' }}</td>
+                <td>{{ day.attendance.clock_out.strftime('%I:%M %p') if day.attendance and day.attendance.clock_out else '-' }}</td>
+                <td>{{ day.attendance.work_duration if day.attendance else '-' }}</td>
+                <td>
+                    {% if day.display_status in ['Present', 'Late'] %}
+                    <span style="background: #dcfce7; color: #15803d; padding: 3px 8px; border-radius: 12px; font-weight: 700;">{{ day.display_status }}</span>
+                    {% elif day.display_status == 'Half Day' %}
+                    <span style="background: #ffedd5; color: #c2410c; padding: 3px 8px; border-radius: 12px; font-weight: 700;">Half Day</span>
+                    {% elif day.display_status == 'Absent' %}
+                    <span style="background: #fee2e2; color: #b91c1c; padding: 3px 8px; border-radius: 12px; font-weight: 700;">Absent</span>
+                    {% elif day.display_status == 'On Leave' %}
+                    <span style="background: #dbeafe; color: #1e40af; padding: 3px 8px; border-radius: 12px; font-weight: 700;">On Leave</span>
+                    {% elif day.display_status == 'Off Day / Sunday' %}
+                    <span style="background: #f1f5f9; color: #64748b; padding: 3px 8px; border-radius: 12px; font-weight: 600;">Off Day</span>
+                    {% elif day.display_status == 'Upcoming' %}
+                    <span style="color: #94a3b8;">-</span>
+                    {% else %}
+                    <span style="background: #fee2e2; color: #991b1b; padding: 3px 8px; border-radius: 12px; font-weight: 700;">Missed / Not Marked</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if day.regularization %}
+                        {% if day.regularization.status == 'approved' %}
+                        <span style="font-size: 11px; background: #dcfce7; color: #15803d; padding: 2px 6px; border-radius: 4px; font-weight: 700;">Approved</span>
+                        {% elif day.regularization.status == 'rejected' %}
+                        <span style="font-size: 11px; background: #fee2e2; color: #b91c1c; padding: 2px 6px; border-radius: 4px; font-weight: 700;">Rejected</span>
+                        {% else %}
+                        <span style="font-size: 11px; background: #fef9c3; color: #a16207; padding: 2px 6px; border-radius: 4px; font-weight: 700;">Pending Approval</span>
+                        {% endif %}
+                    {% elif not day.is_future and day.display_status in ['Missed / Not Marked', 'Absent'] %}
+                    <button type="button" onclick="setRegDate('{{ day.date.strftime('%Y-%m-%d') }}')" class="btn btn-outline" style="padding: 2px 8px; font-size: 11px; border-color: #2563eb; color: #2563eb;">
+                        📌 Regularize
+                    </button>
+                    {% else %}
+                    <span style="font-size: 11px; color: #94a3b8;">-</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Backdated Requests History Table -->
+<div class="card">
+    <h3 style="margin-top: 0; margin-bottom: 15px;">My Backdated Regularization History</h3>
+    {% if reg_requests %}
+    <table class="list" style="font-size: 13px;">
+        <thead>
+            <tr>
+                <th>Target Date</th>
+                <th>Requested Times</th>
+                <th>Status</th>
+                <th>Reason</th>
+                <th>Approval Status</th>
+                <th>Decision Note</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in reg_requests %}
+            <tr>
+                <td style="font-weight: 700;">{{ r.date.strftime('%d-%b-%Y') }}</td>
+                <td>In: {{ r.requested_clock_in.strftime('%I:%M %p') if r.requested_clock_in else '-' }} | Out: {{ r.requested_clock_out.strftime('%I:%M %p') if r.requested_clock_out else '-' }}</td>
+                <td>{{ r.requested_status }}</td>
+                <td>{{ r.reason }}</td>
+                <td>
+                    {% if r.status == 'approved' %}
+                    <span style="background: #dcfce7; color: #15803d; padding: 3px 8px; border-radius: 12px; font-weight: 700;">Approved</span>
+                    {% elif r.status == 'rejected' %}
+                    <span style="background: #fee2e2; color: #b91c1c; padding: 3px 8px; border-radius: 12px; font-weight: 700;">Rejected</span>
+                    {% else %}
+                    <span style="background: #fef9c3; color: #a16207; padding: 3px 8px; border-radius: 12px; font-weight: 700;">Pending Manager</span>
+                    {% endif %}
+                </td>
+                <td style="color: #64748b;">{{ r.decision_note or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: #64748b; text-align: center; padding: 15px;">No backdated attendance requests submitted yet.</p>
+    {% endif %}
+</div>
+
+<script>
+function setRegDate(dStr) {
+    document.getElementById('reg_date').value = dStr;
+    window.scrollTo({ top: document.getElementById('reg_date').offsetTop - 100, behavior: 'smooth' });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Special Approvals{% endblock %}
+{% block page_title %}Special Approvals (OD / WFH / Short Leave / Clearance){% endblock %}
+
+{% block content %}
+<!-- Apply Card -->
+<div class="card" style="max-width: 750px; margin: 0 auto 25px auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3 style="margin: 0;">Apply for Special Approval</h3>
+        {% if current_user.profile and current_user.profile.is_founding_member %}
+        <span style="background: #fef08a; color: #854d0e; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 700;">
+            👑 Founding Member (Instant Self-Approval Active)
+        </span>
+        {% endif %}
+    </div>
+
+    <form method="post" action="{{ url_for('special_approvals_index') }}">
+        <div style="display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 200px;">
+                <label style="font-weight: 600; display: block; margin-bottom: 5px;">Approval Type:</label>
+                <select name="approval_type" required style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
+                    <option value="On-Duty (OD)">On-Duty (OD) / Outdoor Visit</option>
+                    <option value="Work From Home (WFH)">Work From Home (WFH)</option>
+                    <option value="Short Leave">Short Leave / Late Entry</option>
+                    <option value="Special Clearance">Special Clearance / Exception</option>
+                </select>
+            </div>
+            <div style="flex: 1; min-width: 150px;">
+                <label style="font-weight: 600; display: block; margin-bottom: 5px;">Start Date:</label>
+                <input type="date" name="start_date" required style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
+            </div>
+            <div style="flex: 1; min-width: 150px;">
+                <label style="font-weight: 600; display: block; margin-bottom: 5px;">End Date:</label>
+                <input type="date" name="end_date" style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
+            </div>
+            <div style="width: 100px;">
+                <label style="font-weight: 600; display: block; margin-bottom: 5px;">Days:</label>
+                <input type="number" step="0.5" min="0.5" name="days" value="1.0" required style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
+            </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label style="font-weight: 600; display: block; margin-bottom: 5px;">Reason & Client / Location Details:</label>
+            <textarea name="reason" rows="3" required placeholder="Specify reason, client location, or purpose of special approval..." style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-family: inherit;"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="padding: 10px 24px; font-weight: 700;">Submit Approval Request</button>
+    </form>
+</div>
+
+<!-- History Table Card -->
+<div class="card">
+    <h3 style="margin-top: 0; margin-bottom: 15px;">My Special Approval History</h3>
+    {% if requests %}
+    <table class="list">
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Dates</th>
+                <th>Days</th>
+                <th>Reason</th>
+                <th>Status</th>
+                <th>Decision Note</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in requests %}
+            <tr>
+                <td style="font-weight: 700; color: #0f172a;">{{ r.approval_type }}</td>
+                <td>{{ r.start_date.strftime('%d-%b-%Y') }} {% if r.end_date != r.start_date %}to {{ r.end_date.strftime('%d-%b-%Y') }}{% endif %}</td>
+                <td>{{ r.days }}</td>
+                <td style="font-size: 13px;">{{ r.reason }}</td>
+                <td>
+                    {% if r.status == 'approved' %}
+                        {% if r.is_self_approved %}
+                        <span style="background: #fef08a; color: #854d0e; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 700;">👑 Self-Approved</span>
+                        {% else %}
+                        <span style="background: #dcfce7; color: #15803d; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 700;">Approved</span>
+                        {% endif %}
+                    {% elif r.status == 'rejected' %}
+                    <span style="background: #fee2e2; color: #b91c1c; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 700;">Rejected</span>
+                    {% else %}
+                    <span style="background: #fef9c3; color: #a16207; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 700;">Pending Manager</span>
+                    {% endif %}
+                </td>
+                <td style="font-size: 13px; color: #64748b;">{{ r.decision_note or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: #64748b; text-align: center; padding: 20px;">No special approval requests submitted yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

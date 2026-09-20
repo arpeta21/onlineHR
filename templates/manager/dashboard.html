@@ -24,6 +24,19 @@
   </div>
 </div>
 
+{% include "partials/overview_culture.html" %}
+
+<div class="card">
+  <h3>Policy assistant</h3>
+  <p class="card-sub">Search the latest handbook and policy documents for team guidance.</p>
+  <form method="get" action="{{ url_for('hr_resources', tab='resources') }}">
+    <div class="search-row">
+      <input type="text" name="q" placeholder="Ask about leave, attendance, or company policy" required>
+      <button class="btn btn-primary" type="submit">Quick answer</button>
+    </div>
+  </form>
+</div>
+
 {% if not current_user.profile.profile_completed %}
 <div class="help-banner">
   Don't forget to complete your own profile — you're an employee too.

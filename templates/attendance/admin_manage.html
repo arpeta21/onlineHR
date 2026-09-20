@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Attendance{% endblock %}
+{% block page_title %}Attendance Management Dashboard{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom: 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+        <form method="get" action="{{ url_for('admin_attendance') }}" style="display: flex; gap: 15px; align-items: center;">
+            <label style="font-weight: 600;">Select Date:</label>
+            <input type="date" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}" style="padding: 6px 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
+            <button type="submit" class="btn btn-secondary" style="padding: 6px 16px;">View Attendance</button>
+        </form>
+        <a href="{{ url_for('export_attendance_report') }}" class="btn btn-outline" style="font-weight: 600;">📥 Export Attendance Report (CSV)</a>
+    </div>
+</div>
+
+<div class="card">
+    <h3 style="margin-top: 0; margin-bottom: 20px;">Attendance Records for {{ selected_date.strftime('%d-%b-%Y (%A)') }}</h3>
+
+    <table class="list">
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Employee Name</th>
+                <th>Clock In</th>
+                <th>Clock Out</th>
+                <th>Status</th>
+                <th>Notes</th>
+                <th>Update Attendance</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            {% set att = records_dict.get(u.id) %}
+            <tr>
+                <td style="font-weight: 700; color: #0f172a;">{{ u.employee_code }}</td>
+                <td style="font-weight: 600;">{{ u.profile.full_name if u.profile else u.employee_code }}</td>
+                <td>{{ att.clock_in.strftime('%I:%M %p') if att and att.clock_in else '-' }}</td>
+                <td>{{ att.clock_out.strftime('%I:%M %p') if att and att.clock_out else '-' }}</td>
+                <td>
+                    {% if att %}
+                        <span style="font-weight: 700; color: #0284c7;">{{ att.status }}</span>
+                    {% else %}
+                        <span style="color: #94a3b8;">Not Recorded</span>
+                    {% endif %}
+                </td>
+                <td style="font-size: 13px; color: #64748b;">{{ att.notes if att and att.notes else '-' }}</td>
+                <td>
+                    <form method="post" action="{{ url_for('admin_mark_attendance') }}" style="display: flex; gap: 8px; align-items: center;">
+                        <input type="hidden" name="user_id" value="{{ u.id }}">
+                        <input type="hidden" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}">
+                        <select name="status" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 13px;">
+                            <option value="Present" {% if att and att.status == 'Present' %}selected{% endif %}>Present</option>
+                            <option value="Late" {% if att and att.status == 'Late' %}selected{% endif %}>Late</option>
+                            <option value="Half Day" {% if att and att.status == 'Half Day' %}selected{% endif %}>Half Day</option>
+                            <option value="Absent" {% if att and att.status == 'Absent' %}selected{% endif %}>Absent</option>
+                            <option value="On Leave" {% if att and att.status == 'On Leave' %}selected{% endif %}>On Leave</option>
+                        </select>
+                        <input type="text" name="notes" placeholder="Notes" value="{{ att.notes if att else '' }}" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 13px; width: 120px;">
+                        <button type="submit" class="btn btn-primary" style="padding: 4px 10px; font-size: 12px;">Save</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

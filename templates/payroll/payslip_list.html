@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}All Payslips{% endblock %}
+{% block page_title %}All Payslips{% endblock %}
+
+{% block content %}
+
+<div class="card">
+
+<h3>Generated Payslips</h3>
+
+<table class="list">
+
+<thead>
+
+<tr>
+    <th>Employee</th>
+    <th>Employee ID</th>
+    <th>Month</th>
+    <th>Gross</th>
+    <th>Net</th>
+    <th>Action</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+{% for p in payslips %}
+
+<tr>
+
+<td>{{ p.user.profile.full_name }}</td>
+
+<td>{{ p.user.employee_code }}</td>
+
+<td>{{ p.month_label() }}</td>
+
+<td>₹ {{ "{:,.2f}".format(p.gross_pay) }}</td>
+
+<td>₹ {{ "{:,.2f}".format(p.net_pay) }}</td>
+
+<td>
+
+<a href="{{ url_for('view_payslip', payslip_id=p.id) }}"
+   class="btn btn-secondary" style="padding: 4px 10px; text-decoration: none;">
+View
+</a>
+
+<a href="{{ url_for('download_payslip_pdf', payslip_id=p.id) }}"
+   class="btn btn-primary" style="padding: 4px 10px; text-decoration: none;">
+Download PDF
+</a>
+
+</td>
+
+</tr>
+
+{% endfor %}
+
+</tbody>
+
+</table>
+
+</div>
+
+{% endblock %}

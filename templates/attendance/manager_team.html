@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Team Attendance{% endblock %}
+{% block page_title %}Team Today's Attendance{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3 style="margin: 0;">Today's Attendance Status ({{ today.strftime('%d %B %Y') }})</h3>
+    </div>
+
+    {% if team_profiles %}
+    <table class="list">
+        <thead>
+            <tr>
+                <th>Employee Code</th>
+                <th>Employee Name</th>
+                <th>Designation</th>
+                <th>Clock In</th>
+                <th>Clock Out</th>
+                <th>Duration</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in team_profiles %}
+            {% set att = today_dict.get(p.user_id) %}
+            <tr>
+                <td style="font-weight: 700; color: #0f172a;">{{ p.user.employee_code }}</td>
+                <td style="font-weight: 600;">{{ p.full_name }}</td>
+                <td>{{ p.designation or '-' }}</td>
+                <td>{{ att.clock_in.strftime('%I:%M %p') if att and att.clock_in else '-' }}</td>
+                <td>{{ att.clock_out.strftime('%I:%M %p') if att and att.clock_out else '-' }}</td>
+                <td>{{ att.work_duration if att else '-' }}</td>
+                <td>
+                    {% if att %}
+                        {% if att.status == 'Present' %}
+                        <span style="background: #dcfce7; color: #15803d; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 700;">Present</span>
+                        {% elif att.status == 'Late' %}
+                        <span style="background: #fef9c3; color: #a16207; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 700;">Late</span>
+                        {% else %}
+                        <span style="background: #fee2e2; color: #b91c1c; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 700;">{{ att.status }}</span>
+                        {% endif %}
+                    {% else %}
+                        <span style="background: #f1f5f9; color: #64748b; padding: 4px 10px; border-radius: 12px; font-size: 12px;">Not Clocked In</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: #64748b; padding: 20px; text-align: center;">No employees reporting to you yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

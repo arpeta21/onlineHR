@@ -4,7 +4,7 @@ from datetime import datetime
 from flask import Flask, render_template, redirect, url_for, abort
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 
-from models import db, User, EmployeeProfile, LeaveType
+from models import db, User, EmployeeProfile, LeaveType, HRLetterTemplate
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "static", "uploads")
@@ -37,7 +37,20 @@ else:
 
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB max upload limit
+
+# Security & Cookie Confidentiality Configuration
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["PERMANENT_SESSION_LIFETIME"] = 3600  # Auto logout after 1 hour inactivity
+
+@app.after_request
+def set_security_headers(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
 
 # ------------------------------------------------------------------------------
 # Initialize Extensions
@@ -114,7 +127,11 @@ def role_required(*roles):
             if not current_user.is_authenticated:
                 return redirect(url_for("login"))
 
-            if current_user.role not in roles:
+            effective_roles = set(roles)
+            if "admin" in effective_roles:
+                effective_roles.add("demo_admin")
+
+            if current_user.role not in effective_roles:
                 abort(403)
 
             return f(*args, **kwargs)
@@ -175,6 +192,19 @@ def not_found(e):
     )
 
 
+@app.errorhandler(500)
+def internal_error(e):
+    db.session.rollback()
+    return (
+        render_template(
+            "error.html",
+            code=500,
+            message="An unexpected system error occurred. Data transaction rolled back safely.",
+        ),
+        500,
+    )
+
+
 # ------------------------------------------------------------------------------
 # Initial Data
 # ------------------------------------------------------------------------------
@@ -219,24 +249,100 @@ def create_default_leave_types():
     db.session.commit()
 
 
+def create_default_letter_templates():
+    defaults = [
+        ("Appointment Letter", "Appointment Letter", False),
+        ("Offer Letter", "Offer Letter", False),
+        ("Appraisal Letter", "Appraisal Letter", True),
+        ("Transfer Letter", "Transfer Letter", False),
+        ("Promotion Cum Appraisal Letter", "Promotion Cum Appraisal Letter", False),
+        ("Relieving Letter", "Relieving Letter", True),
+        ("Work Experience Letter", "Work Experience Letter", True),
+        ("Confirmation Letter", "Confirmation Letter", True),
+    ]
+    body = (
+        "Dear {{ employee_name }},\n\n"
+        "This letter is issued to you by {{ company_name }}. "
+        "Your designation is {{ designation }} and your department is {{ department }}.\n\n"
+        "{{ details }}\n\n"
+        "We appreciate your contribution and wish you continued success.\n\n"
+        "For {{ company_name }}\nHuman Resources Department"
+    )
+    for letter_type, title, hr_only in defaults:
+        if not HRLetterTemplate.query.filter_by(letter_type=letter_type).first():
+            db.session.add(HRLetterTemplate(
+                letter_type=letter_type, title=title, body=body, hr_only=hr_only
+            ))
+    db.session.commit()
+
+
 def run_lightweight_migrations():
     from sqlalchemy import inspect, text
 
     inspector = inspect(db.engine)
+    tables = inspector.get_table_names()
 
-    if "user" not in inspector.get_table_names():
-        return
+    if "user" in tables:
+        existing_user = [c["name"] for c in inspector.get_columns("user")]
+        if "is_active" not in existing_user:
+            with db.engine.connect() as conn:
+                conn.execute(text("ALTER TABLE user ADD COLUMN is_active BOOLEAN DEFAULT 1"))
+                conn.commit()
+        if "created_by_id" not in existing_user:
+            with db.engine.connect() as conn:
+                conn.execute(text("ALTER TABLE user ADD COLUMN created_by_id INTEGER NULL"))
+                conn.commit()
 
-    existing = [c["name"] for c in inspector.get_columns("user")]
-
-    if "is_active" not in existing:
+    if "employee_profile" in tables:
+        existing_ep = [c["name"] for c in inspector.get_columns("employee_profile")]
         with db.engine.connect() as conn:
-            conn.execute(
-                text(
-                    "ALTER TABLE user ADD COLUMN is_active BOOLEAN DEFAULT 1"
-                )
-            )
+            if "is_founding_member" not in existing_ep:
+                conn.execute(text("ALTER TABLE employee_profile ADD COLUMN is_founding_member BOOLEAN DEFAULT 0"))
+            if "monthly_ctc" not in existing_ep:
+                conn.execute(text("ALTER TABLE employee_profile ADD COLUMN monthly_ctc FLOAT DEFAULT 0.0"))
             conn.commit()
+
+    if "attendance" in tables:
+        existing_att = [c["name"] for c in inspector.get_columns("attendance")]
+        with db.engine.connect() as conn:
+            if "ot_hours" not in existing_att:
+                conn.execute(text("ALTER TABLE attendance ADD COLUMN ot_hours FLOAT DEFAULT 0.0"))
+            if "is_off_day" not in existing_att:
+                conn.execute(text("ALTER TABLE attendance ADD COLUMN is_off_day BOOLEAN DEFAULT 0"))
+            conn.commit()
+
+    if "payslip" in tables:
+        existing_ps = [c["name"] for c in inspector.get_columns("payslip")]
+        with db.engine.connect() as conn:
+            for col, col_type in [
+                ("arrears", "FLOAT DEFAULT 0.0"),
+                ("loss_of_pay", "FLOAT DEFAULT 0.0"),
+                ("ot_hours", "FLOAT DEFAULT 0.0"),
+                ("ot_amount", "FLOAT DEFAULT 0.0"),
+                ("incentive", "FLOAT DEFAULT 0.0"),
+                ("pf_deduction", "FLOAT DEFAULT 0.0"),
+                ("gratuity_provision", "FLOAT DEFAULT 0.0"),
+            ]:
+                if col not in existing_ps:
+                    conn.execute(text(f"ALTER TABLE payslip ADD COLUMN {col} {col_type}"))
+            conn.commit()
+
+    if "appraisal" in tables:
+        existing_appr = [c["name"] for c in inspector.get_columns("appraisal")]
+        with db.engine.connect() as conn:
+            if "period_type" not in existing_appr:
+                conn.execute(text("ALTER TABLE appraisal ADD COLUMN period_type VARCHAR(50) DEFAULT 'Q1 (Sep-Oct)'"))
+            if "year" not in existing_appr:
+                conn.execute(text("ALTER TABLE appraisal ADD COLUMN year INTEGER DEFAULT 2026"))
+            if "weighted_score" not in existing_appr:
+                conn.execute(text("ALTER TABLE appraisal ADD COLUMN weighted_score FLOAT DEFAULT 0.0"))
+            if "potential_rating" not in existing_appr:
+                conn.execute(text("ALTER TABLE appraisal ADD COLUMN potential_rating FLOAT"))
+            if "sendback_note" not in existing_appr:
+                conn.execute(text("ALTER TABLE appraisal ADD COLUMN sendback_note TEXT"))
+            conn.commit()
+
+
 
 
 # ------------------------------------------------------------------------------
@@ -247,10 +353,17 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(os.path.join(BASE_DIR, "instance"), exist_ok=True)
 
 with app.app_context():
-    db.create_all()
+    try:
+        db.create_all()
+    except Exception as e:
+        print("db.create_all notice:", e)
     run_lightweight_migrations()
     create_default_admin()
     create_default_leave_types()
+    create_default_letter_templates()
+    from payroll_logic import seed_default_pay_components
+    seed_default_pay_components()
+
 
 
 # ------------------------------------------------------------------------------

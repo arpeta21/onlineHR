@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Reports & CSV Exports{% endblock %}
+{% block page_title %}Reports & CSV Data Exports Dashboard{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom: 25px;">
+    <h3 style="margin-top: 0; margin-bottom: 8px; color: #0f172a;">📊 HRMS Master Reports & CSV Exports Hub</h3>
+    <p style="color: #64748b; font-size: 14px; margin-bottom: 0;">
+        Download complete CSV data exports for Employee Profiles, Monthly Attendance, Payroll Payslips, and Performance Appraisals.
+    </p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 20px;">
+    <!-- 1. Employee Profile Data Export -->
+    <div class="card" style="border-top: 4px solid #2563eb; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                <span style="font-size: 24px;">👥</span>
+                <h3 style="margin: 0; color: #0f172a;">Employee Master Profile Report</h3>
+            </div>
+            <p style="color: #64748b; font-size: 13.5px; margin-bottom: 15px;">
+                Exports master details for all employees including Employee ID, Full Name, Designation, Department, Date of Joining, Reporting Manager, Founding Member status, Monthly CTC, Email, Phone, PAN, Aadhaar, Bank Account, and IFSC code.
+            </p>
+        </div>
+        <div>
+            <a href="{{ url_for('export_employee_report') }}" class="btn btn-primary" style="font-weight: 700; width: 100%;">
+                📥 Download Employees Master CSV
+            </a>
+        </div>
+    </div>
+
+    <!-- 2. Monthly Attendance Data Export -->
+    <div class="card" style="border-top: 4px solid #16a34a; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                <span style="font-size: 24px;">⏱️</span>
+                <h3 style="margin: 0; color: #0f172a;">Attendance Summary Report</h3>
+            </div>
+            <p style="color: #64748b; font-size: 13.5px; margin-bottom: 15px;">
+                Exports monthly attendance records including Date, Clock In, Clock Out, Total Work Duration, Attendance Status (Present, Late, Half Day, Absent, Leave), Overtime Hours, Off Day flag, and Notes.
+            </p>
+        </div>
+        <form method="get" action="{{ url_for('export_attendance_report') }}">
+            <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                <select name="month" style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 600;">
+                    {% for m in range(1, 13) %}
+                    <option value="{{ m }}" {{ 'selected' if m == current_month }}>
+                        {{ ['January','February','March','April','May','June','July','August','September','October','November','December'][m-1] }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <input type="number" name="year" value="{{ current_year }}" style="width: 100px; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 600;">
+            </div>
+            <button type="submit" class="btn btn-primary" style="background: #16a34a; border-color: #16a34a; font-weight: 700; width: 100%;">
+                📥 Download Attendance CSV
+            </button>
+        </form>
+    </div>
+
+    <!-- 3. Monthly Payroll & Payslip Data Export -->
+    <div class="card" style="border-top: 4px solid #0284c7; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                <span style="font-size: 24px;">💰</span>
+                <h3 style="margin: 0; color: #0f172a;">Payroll & Payslips Report</h3>
+            </div>
+            <p style="color: #64748b; font-size: 13.5px; margin-bottom: 15px;">
+                Exports generated payslip summaries including Monthly CTC Used, Gross Pay, Arrears, Incentive / Bonus, OT Amount, Deductions, LOP Amount, PF Deductions, and Final Net Pay.
+            </p>
+        </div>
+        <form method="get" action="{{ url_for('export_payroll_report') }}">
+            <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                <select name="month" style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 600;">
+                    {% for m in range(1, 13) %}
+                    <option value="{{ m }}" {{ 'selected' if m == current_month }}>
+                        {{ ['January','February','March','April','May','June','July','August','September','October','November','December'][m-1] }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <input type="number" name="year" value="{{ current_year }}" style="width: 100px; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 600;">
+            </div>
+            <button type="submit" class="btn btn-primary" style="background: #0284c7; border-color: #0284c7; font-weight: 700; width: 100%;">
+                📥 Download Payroll CSV
+            </button>
+        </form>
+    </div>
+
+    <!-- 4. Performance Appraisals Data Export -->
+    <div class="card" style="border-top: 4px solid #8b5cf6; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                <span style="font-size: 24px;">📈</span>
+                <h3 style="margin: 0; color: #0f172a;">Performance Appraisals Report</h3>
+            </div>
+            <p style="color: #64748b; font-size: 13.5px; margin-bottom: 15px;">
+                Exports performance appraisal records including Review Period, Period Type (Q1/Q2), Year, Evaluator, Status, Self Rating (out of 5), Manager Rating (out of 5), Weighted Score %, and Comments.
+            </p>
+        </div>
+        <form method="get" action="{{ url_for('export_appraisal_report') }}">
+            <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                <select name="period_type" style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 600;">
+                    <option value="">All Review Periods</option>
+                    <option value="Q1 (Sep-Oct)">Q1 (Sep-Oct)</option>
+                    <option value="Q2 (Mar-Apr)">Q2 (Mar-Apr)</option>
+                </select>
+                <input type="number" name="year" value="{{ current_year }}" style="width: 100px; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 600;">
+            </div>
+            <button type="submit" class="btn btn-primary" style="background: #8b5cf6; border-color: #8b5cf6; font-weight: 700; width: 100%;">
+                📥 Download Appraisals CSV
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

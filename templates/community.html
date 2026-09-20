@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}People & Culture{% endblock %}
+{% block page_title %}People & Culture{% endblock %}
+{% block content %}
+<div class="community-hero"><div><span class="eyebrow">A little room for the human stuff</span><h1>Celebrate the people around you.</h1><p>Share a thank-you, send a good wish, and keep the dates that matter to the whole team in view.</p></div><div class="hero-mark">✦</div></div>
+<div class="community-layout">
+  <div>
+    <div class="card"><div class="section-heading"><div><span class="eyebrow">Open board</span><h3>Wishes & recognitions</h3></div><span class="section-icon">💌</span></div>
+      <form method="post" class="recognition-form"><div class="grid-2"><div class="field"><label for="recipient_id">To</label><select id="recipient_id" name="recipient_id" required><option value="">Choose a colleague</option>{% for person in people %}<option value="{{ person.id }}">{{ person.profile.full_name }}</option>{% endfor %}</select></div><div class="field"><label for="category">Kind of message</label><select id="category" name="category"><option>Appreciation</option><option>Buddy wish</option><option>Birthday wish</option><option>Congratulations</option></select></div></div><div class="field"><label for="message">Your message</label><textarea id="message" name="message" rows="3" maxlength="500" placeholder="Tell them what made a difference..." required></textarea></div><button class="btn btn-primary" type="submit">Share with everyone</button></form>
+    </div>
+    {% if recent_recognitions %}<div class="recognition-feed community-feed">{% for recognition in recent_recognitions %}<div class="card recognition-quote"><span class="quote-mark">“</span><p>{{ recognition.message }}</p><small><strong>{{ recognition.sender.profile.full_name }}</strong> to <strong>{{ recognition.recipient.profile.full_name }}</strong><br>{{ recognition.category }} · {{ recognition.created_at.strftime('%d %b %Y') }}</small></div>{% endfor %}</div>{% endif %}
+  </div>
+  <div>
+    <div class="card"><div class="section-heading"><div><span class="eyebrow">The calendar</span><h3>Important dates</h3></div><span class="section-icon">📌</span></div>{% for item in upcoming_dates %}<div class="culture-item date-item"><div class="date-tile"><b>{{ item.date.strftime('%d') }}</b><span>{{ item.date.strftime('%b') }}</span></div><div><strong>{{ item.title }}</strong><span>{{ item.description or 'Company calendar' }}</span></div>{% if current_user.role in ['admin', 'demo_admin'] %}<form method="post" action="{{ url_for('admin_delete_important_date', date_id=item.id) }}"><button class="icon-button" title="Remove date" type="submit">×</button></form>{% endif %}</div>{% else %}<p class="muted">No dates yet.</p>{% endfor %}</div>
+    {% if current_user.role in ['admin', 'demo_admin'] %}<div class="card admin-date-card"><span class="eyebrow">Admin tools</span><h3>Add an important date</h3><form method="post" action="{{ url_for('admin_add_important_date') }}"><div class="field"><label for="title">Title</label><input id="title" name="title" required placeholder="Annual day"></div><div class="field"><label for="date">Date</label><input id="date" name="date" type="date" required></div><div class="field"><label for="description">Note</label><input id="description" name="description" placeholder="Optional details"></div><button class="btn btn-secondary" type="submit">Add date</button></form></div>{% endif %}
+  </div>
+</div>
+{% endblock %}

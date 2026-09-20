@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}HR Resources{% endblock %}
+{% block page_title %}HR Resources{% endblock %}
+{% block content %}
+<div class="resource-hero">
+  <div><span class="eyebrow">People operations library</span><h1>Everything you need, in one place.</h1><p>Letters, policies, calculators, appraisal conversations, and memories from across the team.</p></div>
+  <div class="resource-hero-mark">◎</div>
+</div>
+
+<div class="resource-tabs" role="tablist">
+  <a class="{{ 'active' if tab == 'letters' else '' }}" href="{{ url_for('hr_resources', tab='letters') }}">Letters</a>
+  <a class="{{ 'active' if tab == 'resources' else '' }}" href="{{ url_for('hr_resources', tab='resources') }}">Handbook & policies</a>
+  <a class="{{ 'active' if tab == 'calculators' else '' }}" href="{{ url_for('hr_resources', tab='calculators') }}">Calculators</a>
+  <a class="{{ 'active' if tab == 'appraisals' else '' }}" href="{{ url_for('hr_resources', tab='appraisals') }}">Appraisal calendar</a>
+  <a class="{{ 'active' if tab == 'memories' else '' }}" href="{{ url_for('hr_resources', tab='memories') }}">HR memories</a>
+</div>
+
+{% if tab == 'letters' %}
+<div class="resource-columns">
+  <div>
+    <div class="card">
+      <div class="section-heading"><div><span class="eyebrow">Self service</span><h3>Request a letter</h3></div><span class="section-icon">✉</span></div>
+      <p class="card-sub">Choose a format and HR will review, personalize, and issue it to your document library.</p>
+      <form method="post" action="{{ url_for('request_hr_letter') }}">
+        <div class="field"><label for="template_id">Letter type</label><select id="template_id" name="template_id" required><option value="">Choose a letter</option>{% for template in templates if not template.hr_only %}<option value="{{ template.id }}">{{ template.title }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="subject">Subject</label><input id="subject" name="subject" placeholder="Optional subject"></div>
+        <div class="field"><label for="details">Details for HR</label><textarea id="details" name="details" rows="4" placeholder="Mention the effective date, transfer location, or other context..."></textarea></div>
+        <button class="btn btn-primary" type="submit">Send request to HR</button>
+      </form>
+    </div>
+    <div class="card"><div class="section-heading"><div><span class="eyebrow">Your library</span><h3>{% if current_user.role in ['admin', 'demo_admin'] %}All letter requests{% else %}My letters{% endif %}</h3></div><span class="section-icon">▤</span></div>
+      {% if letters %}<div class="letter-list">{% for letter in letters %}<div class="letter-row"><div><strong>{{ letter.subject }}</strong><span>{{ letter.employee.profile.full_name if letter.employee.profile else letter.employee.employee_code }} · {{ letter.requested_at.strftime('%d %b %Y') }}</span></div><div>{% if letter.status == 'Issued' %}<a class="btn btn-outline btn-sm" href="{{ url_for('view_hr_letter', letter_id=letter.id) }}">View</a><a class="btn btn-outline btn-sm" href="{{ url_for('download_hr_letter', letter_id=letter.id) }}">Download</a>{% else %}<span class="status-chip">{{ letter.status }}</span>{% endif %}</div></div>{% endfor %}</div>{% else %}<p class="muted">Issued letters will appear here.</p>{% endif %}
+    </div>
+  </div>
+  <div>
+    {% if current_user.role in ['admin', 'demo_admin'] %}
+    <div class="card admin-resource-card"><div class="section-heading"><div><span class="eyebrow">HR desk</span><h3>Issue a letter</h3></div><span class="section-icon">✓</span></div>
+      <form method="post" action="{{ url_for('issue_hr_letter') }}">
+        <div class="field"><label for="employee_id">Employee</label><select id="employee_id" name="employee_id" required><option value="">Choose employee</option>{% for employee in employees %}<option value="{{ employee.id }}">{{ employee.profile.full_name }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="issue_template_id">Format</label><select id="issue_template_id" name="template_id" required>{% for template in templates %}<option value="{{ template.id }}">{{ template.title }}{% if template.hr_only %} · HR only{% endif %}</option>{% endfor %}</select></div>
+        <div class="field"><label for="issue_subject">Subject</label><input id="issue_subject" name="subject" placeholder="Letter subject"></div>
+        <div class="field"><label for="issue_details">Letter details</label><textarea id="issue_details" name="details" rows="4" placeholder="Effective date, revised role, terms, or other particulars..."></textarea></div>
+        <button class="btn btn-primary" type="submit">Issue and send</button>
+      </form>
+    </div>
+    <div class="card"><div class="section-heading"><div><span class="eyebrow">Client-editable</span><h3>Letter formats</h3></div></div><p class="card-sub">Use these placeholders: <code>{{ '{{ employee_name }}' }}</code>, <code>{{ '{{ designation }}' }}</code>, <code>{{ '{{ department }}' }}</code>, <code>{{ '{{ details }}' }}</code>.</p>{% for template in templates %}<details class="template-editor"><summary>{{ template.title }}{% if template.hr_only %}<span class="status-chip">HR only</span>{% endif %}</summary><form method="post" action="{{ url_for('update_hr_letter_template', template_id=template.id) }}"><div class="field"><label>Title</label><input name="title" value="{{ template.title }}"></div><div class="field"><label>Common format</label><textarea name="body" rows="7">{{ template.body }}</textarea></div><button class="btn btn-secondary btn-sm" type="submit">Save format</button></form></details>{% endfor %}</div>
+    {% endif %}
+  </div>
+</div>
+{% elif tab == 'resources' %}
+<div class="card resource-search-card">
+  <div class="section-heading">
+    <div><span class="eyebrow">Smart policy lookup</span><h3>Search the policy library</h3></div>
+    <span class="section-icon">⌕</span>
+  </div>
+  <form method="get" action="{{ url_for('hr_resources', tab='resources') }}">
+    <div class="search-row">
+      <input type="text" name="q" value="{{ search_query or '' }}" placeholder="Try: leave policy, attendance, code of conduct, reimbursement..." required>
+      <button class="btn btn-primary" type="submit">Search</button>
+    </div>
+  </form>
+  {% if search_query and policy_answer %}
+  <div class="policy-answer-box">
+    <strong>Quick answer</strong>
+    <p>{{ policy_answer }}</p>
+  </div>
+  {% endif %}
+</div>
+
+<div class="resource-columns">
+  <div class="card"><div class="section-heading"><div><span class="eyebrow">Always available</span><h3>Employee handbook, policies & forms</h3></div><span class="section-icon">▥</span></div>{% if resources %}<div class="resource-list">{% for resource in resources %}<div class="resource-row"><div class="resource-icon">{% if resource.category == 'Handbook' %}H{% elif resource.category == 'Form' %}F{% else %}P{% endif %}</div><div><strong>{{ resource.title }}</strong><span>{{ resource.category }}{% if resource.description %} · {{ resource.description }}{% endif %}</span></div><a class="btn btn-outline btn-sm" href="{{ url_for('download_hr_resource', resource_id=resource.id) }}">Download</a></div>{% endfor %}</div>{% else %}<p class="muted">HR has not published any resources yet.</p>{% endif %}</div>
+  {% if current_user.role in ['admin', 'demo_admin'] %}<div class="card admin-resource-card"><span class="eyebrow">HR desk</span><h3>Publish a resource</h3><form method="post" action="{{ url_for('upload_hr_resource') }}" enctype="multipart/form-data"><div class="field"><label for="resource_title">Title</label><input id="resource_title" name="title" required placeholder="Code of conduct"></div><div class="field"><label for="resource_category">Category</label><select id="resource_category" name="category"><option>Handbook</option><option>Policy</option><option>Form</option></select></div><div class="field"><label for="resource_description">Description</label><input id="resource_description" name="description" placeholder="Short description"></div><div class="field"><label for="resource_file">File</label><input id="resource_file" name="file" type="file" required></div><button class="btn btn-primary" type="submit">Publish to employees</button></form></div>{% endif %}
+</div>
+{% elif tab == 'calculators' %}
+<div class="calculator-grid">
+  <div class="card calculator-card"><span class="eyebrow">India estimate</span><h3>Gratuity calculator</h3><p class="card-sub">Estimate based on last drawn monthly basic and completed years.</p><div class="field"><label for="grat_basic">Monthly basic pay</label><input id="grat_basic" type="number" min="0" step="100"></div><div class="field"><label for="grat_years">Completed years</label><input id="grat_years" type="number" min="0" step="1"></div><button class="btn btn-secondary" type="button" onclick="calculateGratuity()">Calculate</button><output id="grat_result" class="calculator-result">Enter values above.</output></div>
+  <div class="card calculator-card"><span class="eyebrow">Indicative estimate</span><h3>PF calculator</h3><p class="card-sub">Employee and employer contribution at 12% of basic pay.</p><div class="field"><label for="pf_basic">Monthly basic pay</label><input id="pf_basic" type="number" min="0" step="100"></div><button class="btn btn-secondary" type="button" onclick="calculatePF()">Calculate</button><output id="pf_result" class="calculator-result">Enter values above.</output></div>
+  <div class="card calculator-card"><span class="eyebrow">Planning tool</span><h3>Income tax calculator</h3><p class="card-sub">Simple new-regime estimate. Confirm final liability with payroll/Tax HR.</p><div class="field"><label for="tax_income">Annual taxable income</label><input id="tax_income" type="number" min="0" step="1000"></div><button class="btn btn-secondary" type="button" onclick="calculateTax()">Calculate</button><output id="tax_result" class="calculator-result">Enter values above.</output></div>
+</div>
+{% elif tab == 'appraisals' %}
+<div class="resource-columns"><div class="card"><div class="section-heading"><div><span class="eyebrow">Shared calendar</span><h3>Appraisal meetings</h3></div><span class="section-icon">◷</span></div>{% if meetings %}<div class="meeting-list">{% for meeting in meetings %}<div class="meeting-row"><div class="meeting-date"><b>{{ meeting.scheduled_for.strftime('%d') }}</b><span>{{ meeting.scheduled_for.strftime('%b') }}</span></div><div><strong>{{ meeting.title }}</strong><span>{{ meeting.scheduled_for.strftime('%d %b %Y, %I:%M %p') }}{% if meeting.employee %} · {{ meeting.employee.profile.full_name }}{% endif %}</span><small>{{ meeting.location or 'Location to be shared' }}{% if meeting.notes %} · {{ meeting.notes }}{% endif %}</small></div></div>{% endfor %}</div>{% else %}<p class="muted">No appraisal meetings are scheduled.</p>{% endif %}<a class="btn btn-outline btn-sm" href="{{ url_for('appraisals_index') }}">Open appraisal section</a></div>{% if current_user.role == 'admin' %}<div class="card admin-resource-card"><span class="eyebrow">HR desk</span><h3>Schedule a meeting</h3><form method="post" action="{{ url_for('add_appraisal_meeting') }}"><div class="field"><label for="meeting_title">Title</label><input id="meeting_title" name="title" required placeholder="Mid-year review discussion"></div><div class="field"><label for="scheduled_for">Date and time</label><input id="scheduled_for" name="scheduled_for" type="datetime-local" required></div><div class="field"><label for="meeting_employee">Employee</label><select id="meeting_employee" name="employee_id"><option value="">Team-wide / general</option>{% for employee in employees %}<option value="{{ employee.id }}">{{ employee.profile.full_name }}</option>{% endfor %}</select></div><div class="field"><label for="location">Location or meeting link</label><input id="location" name="location"></div><div class="field"><label for="meeting_notes">Notes</label><textarea id="meeting_notes" name="notes" rows="2"></textarea></div><button class="btn btn-primary" type="submit">Add to calendar</button></form></div>{% endif %}</div>
+{% elif tab == 'memories' %}
+<div class="memory-grid">{% for memory in memories %}<article class="memory-card">{% if memory.image_filename %}<img src="{{ url_for('static', filename='uploads/' + memory.image_filename) }}" alt="{{ memory.title }}">{% else %}<div class="memory-placeholder">✦</div>{% endif %}<div class="memory-copy"><span class="eyebrow">{{ memory.event_date.strftime('%d %b %Y') if memory.event_date else 'HR event' }}</span><h3>{{ memory.title }}</h3><p>{{ memory.description or 'A shared moment from the Sanvit HR community.' }}</p></div></article>{% else %}<div class="card"><p class="muted">HR memories will appear here after events are published.</p></div>{% endfor %}</div>
+{% if current_user.role in ['admin', 'demo_admin'] %}<div class="card admin-resource-card memory-upload"><span class="eyebrow">HR desk</span><h3>Publish an event memory</h3><form method="post" action="{{ url_for('upload_hr_memory') }}" enctype="multipart/form-data"><div class="grid-2"><div class="field"><label for="memory_title">Event title</label><input id="memory_title" name="title" required placeholder="Annual team day"></div><div class="field"><label for="event_date">Event date</label><input id="event_date" name="event_date" type="date"></div></div><div class="field"><label for="memory_description">Caption</label><textarea id="memory_description" name="description" rows="3"></textarea></div><div class="field"><label for="memory_image">Photos</label><input id="memory_image" name="image" type="file" accept=".png,.jpg,.jpeg,.webp"></div><button class="btn btn-primary" type="submit">Publish memory</button></form></div>{% endif %}
+{% endif %}
+
+<script>
+function money(value) { return 'Rs. ' + Number(value || 0).toLocaleString('en-IN', {maximumFractionDigits: 2}); }
+function calculateGratuity() { const basic = Number(document.getElementById('grat_basic').value); const years = Number(document.getElementById('grat_years').value); document.getElementById('grat_result').textContent = 'Estimated gratuity: ' + money(basic * 15 * years / 26); }
+function calculatePF() { const basic = Number(document.getElementById('pf_basic').value); document.getElementById('pf_result').textContent = 'Employee: ' + money(basic * .12) + ' / month | Employer: ' + money(basic * .12) + ' / month'; }
+function calculateTax() { let income = Math.max(0, Number(document.getElementById('tax_income').value) - 75000); let tax = 0; [[400000,0],[400000,.05],[400000,.10],[400000,.15],[400000,.20],[Infinity,.30]].some(function(band) { if (income <= band[0]) { tax += income * band[1]; return true; } tax += band[0] * band[1]; income -= band[0]; return false; }); document.getElementById('tax_result').textContent = 'Indicative annual tax: ' + money(tax) + ' before cess and rebates.'; }
+</script>
+{% endblock %}

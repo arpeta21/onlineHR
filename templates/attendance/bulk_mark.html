@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Bulk Attendance Marking{% endblock %}
+{% block page_title %}Bulk Attendance Marking & Approval Tab{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 800px; margin: 0 auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3 style="margin: 0;">Bulk Attendance & Full-Month Approval</h3>
+        <span style="font-size: 12px; background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 12px; font-weight: 700;">
+            Role: {{ role_mode | upper }}
+        </span>
+    </div>
+    
+    <p style="color: #64748b; font-size: 14px; margin-bottom: 25px;">
+        Select employee(s) and choose a full month or date range to mark and approve attendance (Present, Absent, Leave) for all days together.
+    </p>
+
+    <form method="post" action="{% if role_mode == 'admin' %}{{ url_for('admin_bulk_attendance') }}{% elif role_mode == 'manager' %}{{ url_for('manager_bulk_attendance') }}{% else %}{{ url_for('employee_bulk_attendance') }}{% endif %}">
+        
+        <!-- Employee Selection -->
+        {% if role_mode != 'employee' %}
+        <div style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <label style="font-weight: 600;">Select Employee(s):</label>
+                <label style="font-size: 13px; cursor: pointer; color: #2563eb; font-weight: 600;">
+                    <input type="checkbox" id="selectAllEmps" onchange="toggleSelectAll(this)"> Select All
+                </label>
+            </div>
+            <div style="max-height: 180px; overflow-y: auto; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; background: #f8fafc;">
+                {% for e in employees %}
+                <label style="display: block; margin-bottom: 6px; font-size: 14px; cursor: pointer;">
+                    <input type="checkbox" class="emp-checkbox" name="user_ids" value="{{ e.id }}" checked>
+                    <strong>{{ e.employee_code }}</strong> — {{ e.profile.full_name if e.profile else e.employee_code }} ({{ e.role }})
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <input type="hidden" name="user_ids" value="{{ current_user.id }}">
+        {% endif %}
+
+        <!-- Quick Month Selection Helper -->
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <label style="font-weight: 700; color: #166534; display: block; margin-bottom: 8px;">
+                📅 Quick Select All Days of Month:
+            </label>
+            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                <select id="quickMonthSelect" onchange="applyMonthPreset()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff;">
+                    <option value="">— Select Month to Auto-Fill All Days —</option>
+                    <option value="2026-01">January 2026 (1 - 31)</option>
+                    <option value="2026-02">February 2026 (1 - 28)</option>
+                    <option value="2026-03">March 2026 (1 - 31)</option>
+                    <option value="2026-04">April 2026 (1 - 30)</option>
+                    <option value="2026-05">May 2026 (1 - 31)</option>
+                    <option value="2026-06">June 2026 (1 - 30)</option>
+                    <option value="2026-07" selected>July 2026 (1 - 31)</option>
+                    <option value="2026-08">August 2026 (1 - 31)</option>
+                    <option value="2026-09">September 2026 (1 - 30)</option>
+                    <option value="2026-10">October 2026 (1 - 31)</option>
+                    <option value="2026-11">November 2026 (1 - 30)</option>
+                    <option value="2026-12">December 2026 (1 - 31)</option>
+                </select>
+                <button type="button" class="btn btn-outline" onclick="applyMonthPreset()" style="padding: 8px 14px; font-size: 13px;">
+                    Fill All Days of Month
+                </button>
+            </div>
+        </div>
+
+        <!-- Date Range & Status -->
+        <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 150px;">
+                <label style="font-weight: 600; display: block; margin-bottom: 5px;">Start Date:</label>
+                <input type="date" id="start_date" name="start_date" value="2026-07-01" required style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
+            </div>
+            <div style="flex: 1; min-width: 150px;">
+                <label style="font-weight: 600; display: block; margin-bottom: 5px;">End Date:</label>
+                <input type="date" id="end_date" name="end_date" value="2026-07-31" required style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
+            </div>
+            <div style="flex: 1; min-width: 150px;">
+                <label style="font-weight: 600; display: block; margin-bottom: 5px;">Status to Apply:</label>
+                <select name="status" style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 700;">
+                    <option value="Present" style="color: #166534;">Present</option>
+                    <option value="Late" style="color: #ca8a04;">Late</option>
+                    <option value="Half Day" style="color: #d97706;">Half Day</option>
+                    <option value="Absent" style="color: #dc2626;">Absent</option>
+                    <option value="On Leave" style="color: #2563eb;">On Leave</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 25px;">
+            <label style="font-weight: 600; display: block; margin-bottom: 5px;">Remarks / Notes (optional):</label>
+            <input type="text" name="notes" placeholder="e.g. Approved Full-Month Attendance / Official Approval" style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="padding: 10px 24px; font-weight: 700; width: 100%;">
+            ⚡ Mark & Approve All Days of Month Together
+        </button>
+    </form>
+</div>
+
+<script>
+function toggleSelectAll(master) {
+    const checkboxes = document.querySelectorAll('.emp-checkbox');
+    checkboxes.forEach(cb => cb.checked = master.checked);
+}
+
+function applyMonthPreset() {
+    const val = document.getElementById('quickMonthSelect').value;
+    if (!val) return;
+
+    const parts = val.split('-');
+    const yr = parseInt(parts[0]);
+    const mo = parseInt(parts[1]);
+
+    const lastDay = new Date(yr, mo, 0).getDate();
+
+    const startStr = `${yr}-${String(mo).padStart(2, '0')}-01`;
+    const endStr = `${yr}-${String(mo).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+    document.getElementById('start_date').value = startStr;
+    document.getElementById('end_date').value = endStr;
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    applyMonthPreset();
+});
+</script>
+{% endblock %}

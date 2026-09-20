@@ -1,0 +1,67 @@
+{% extends "base.html" %} {% block title %}Employee CTC{% endblock %} {% block
+page_title %}Employee CTC{% endblock %} {% block content %}
+
+<div class="card">
+  <h3>Employee CTC</h3>
+
+  <p class="card-sub">Assign or update Monthly CTC for every employee.</p>
+
+  <table class="list">
+    <thead>
+      <tr>
+        <th>Employee ID</th>
+        <th>Name</th>
+        <th>Designation</th>
+        <th>Monthly CTC</th>
+        <th>Effective From</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for emp in employees %} {% set ctc = ctc_records.get(emp.id) %}
+
+      <tr>
+        <form
+          method="POST"
+          action="{{ url_for('save_employee_ctc', user_id=emp.id) }}"
+        >
+          <td>{{ emp.employee_code }}</td>
+
+          <td>{{ emp.profile.full_name }}</td>
+
+          <td>{{ emp.profile.designation or "-" }}</td>
+
+          <td>
+            <input
+              type="number"
+              name="monthly_ctc"
+              step="0.01"
+              value="{{ ctc.monthly_ctc if ctc else '' }}"
+              class="form-control"
+              required
+            />
+          </td>
+
+          <td>
+            <input
+              type="date"
+              name="effective_from"
+              value="{{ ctc.effective_from.strftime('%Y-%m-%d') if ctc else '' }}"
+              class="form-control"
+              required
+            />
+          </td>
+
+          <td>
+            <button type="submit" class="btn btn-success">Save</button>
+          </td>
+        </form>
+      </tr>
+
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

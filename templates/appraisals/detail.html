@@ -1,0 +1,519 @@
+{% extends "base.html" %}
+
+{% block title %}Appraisal - {{ appraisal.review_period }}{% endblock %}
+{% block page_title %}Performance Appraisal Detail — {{ appraisal.review_period }}{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom: 25px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 20px;">
+        <div>
+            <h2 style="margin: 0; color: #0f172a;">{{ appraisal.review_period }} Performance Appraisal</h2>
+            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">
+                Employee: <strong>{{ appraisal.user.profile.full_name if appraisal.user.profile else appraisal.user.employee_code }}</strong> ({{ appraisal.user.employee_code }}) |
+                Evaluator: <strong>{{ appraisal.evaluator.profile.full_name if appraisal.evaluator and appraisal.evaluator.profile else 'Manager' }}</strong>
+            </p>
+        </div>
+        <div>
+            {% if appraisal.status == 'Completed' %}
+            <span style="background: #dcfce7; color: #15803d; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 13.5px;">✅ Completed</span>
+            {% elif appraisal.status == 'Self Review Submitted' %}
+            <span style="background: #e0f2fe; color: #0369a1; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 13.5px;">📩 Self Review Submitted</span>
+            {% elif appraisal.status == 'KRA Approved (Eligible for Rating)' %}
+            <span style="background: #dcfce7; color: #166534; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 13.5px;">⭐ KRAs Approved — Rating Open</span>
+            {% elif appraisal.status == 'KRA Submitted for Approval' %}
+            <span style="background: #fef9c3; color: #a16207; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 13.5px;">⏳ KRA Submitted for Approval</span>
+            {% elif appraisal.status in ['KRA Sent Back for Edit', 'Rating Sent Back for Edit'] %}
+            <span style="background: #fee2e2; color: #b91c1c; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 13.5px;">⚠️ Sent Back for Edit</span>
+            {% else %}
+            <span style="background: #f1f5f9; color: #475569; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 13.5px;">📝 Stage 1: KRA Setting</span>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if appraisal.sendback_note %}
+    <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+        <h4 style="margin: 0 0 5px 0; color: #991b1b;">⚠️ Manager Feedback for Revision:</h4>
+        <p style="margin: 0; color: #b91c1c; font-size: 14px;">{{ appraisal.sendback_note }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Overview Bar -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <div>
+            <span style="font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase;">Overall Self Rating:</span>
+            <div style="font-size: 18px; font-weight: 800; color: #0f172a;">
+                {{ '⭐ %.1f / 5.0'|format(appraisal.self_rating) if appraisal.self_rating else 'Not Rated Yet' }}
+            </div>
+        </div>
+        <div>
+            <span style="font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase;">Manager Rating:</span>
+            <div style="font-size: 18px; font-weight: 800; color: #166534;">
+                {{ '⭐ %.1f / 5.0'|format(appraisal.rating) if appraisal.rating else 'Pending Review' }}
+            </div>
+        </div>
+        <div>
+            <span style="font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase;">Calculated Achievement:</span>
+            <div style="font-size: 18px; font-weight: 800; color: #0284c7;">
+                {{ '%.1f%%'|format(appraisal.weighted_score) if appraisal.weighted_score is not none else '0.0%' }}
+            </div>
+        </div>
+    </div>
+
+
+    <!-- STAGE 1: EMPLOYEE DEFINES KRAs & KPIs -->
+    {% if is_owner and appraisal.status in ['Initiated', 'KRA Draft', 'KRA Sent Back for Edit'] %}
+    <form method="post" action="{{ url_for('view_edit_appraisal', appraisal_id=appraisal.id) }}" id="kraForm">
+        <input type="hidden" name="action" value="submit_kras">
+
+        <div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 14px 18px; border-radius: 8px; margin-bottom: 20px;">
+            <h4 style="margin: 0 0 4px 0; color: #1e40af;">📍 Stage 1: Define Key Result Areas (KRAs) & KPIs</h4>
+            <p style="margin: 0; font-size: 13.5px; color: #1e3a8a;">
+                Set up your KRAs (Max 5, total weightage = 100%) and KPIs (Max 6 per KRA, total weightage = 100%).
+                Once submitted, your Manager will review and approve these KRAs before the Rating Phase opens.
+            </p>
+        </div>
+
+        <div id="krasContainer"></div>
+
+        <button type="button" class="btn btn-outline" onclick="addKRA()" style="margin-bottom: 20px; font-weight: 600;">
+            ➕ Add Key Result Area (KRA) (Max 5)
+        </button>
+
+        <div>
+            <button type="submit" class="btn btn-primary" style="padding: 10px 24px; font-weight: 700;">
+                🚀 Submit KRAs to Manager for Approval
+            </button>
+        </div>
+    </form>
+
+
+    <!-- STAGE 1 MANAGER ACTION: APPROVE OR SEND BACK KRAs -->
+    {% elif is_evaluator and appraisal.status == 'KRA Submitted for Approval' %}
+    <div style="background: #fffbe0; border: 2px solid #fde047; padding: 20px; border-radius: 10px; margin-bottom: 25px;">
+        <h3 style="margin-top: 0; color: #854d0e;">📋 Manager Action Required: Review Proposed KRAs & KPIs</h3>
+        <p style="color: #713f12; font-size: 14px; margin-bottom: 20px;">
+            Review the defined KRAs, metrics, targets, and weightages below. Approve them to unlock the Rating Phase for the employee or send back for modifications.
+        </p>
+
+        <!-- KRA Read-only display -->
+        {% for kra in appraisal.kras %}
+        <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: #ffffff;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h4 style="margin: 0; color: #0f172a;">KRA {{ loop.index }}: {{ kra.title }}</h4>
+                <span style="background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 12.5px;">Weightage: {{ kra.weightage_percent }}%</span>
+            </div>
+            <table class="list" style="font-size: 13px;">
+                <thead>
+                    <tr style="background: #f8fafc;">
+                        <th>KPI Title</th><th>Formula</th><th>Target</th><th>Actual</th><th>Weight</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for kpi in kra.kpis %}
+                    <tr>
+                        <td style="font-weight: 600;">{{ kpi.title }}</td>
+                        <td style="font-size: 12px; color: #475569;">{{ kpi.metric_formula_desc or '-' }}</td>
+                        <td>{{ kpi.target_value }} {{ kpi.unit }}</td>
+                        <td><strong>{{ kpi.actual_value }} {{ kpi.unit }}</strong></td>
+                        <td>{{ kpi.weightage_percent }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+
+        <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-top: 20px;">
+            <form method="post" action="{{ url_for('view_edit_appraisal', appraisal_id=appraisal.id) }}">
+                <input type="hidden" name="action" value="decide_kras">
+                <input type="hidden" name="decision" value="approve">
+                <button type="submit" class="btn btn-primary" style="background: #16a34a; border-color: #16a34a; font-weight: 700; padding: 10px 24px;">
+                    ✅ Approve KRAs & Unlock Rating Phase
+                </button>
+            </form>
+
+            <form method="post" action="{{ url_for('view_edit_appraisal', appraisal_id=appraisal.id) }}" style="flex: 1; min-width: 280px; display: flex; gap: 10px;">
+                <input type="hidden" name="action" value="decide_kras">
+                <input type="hidden" name="decision" value="send_back">
+                <input type="text" name="sendback_note" required placeholder="Reason to send back KRAs for revision..." style="flex: 1; padding: 8px 12px; border-radius: 6px; border: 1px solid #fca5a5;">
+                <button type="submit" class="btn btn-outline" style="color: #b91c1c; border-color: #fca5a5; font-weight: 700; whitespace: nowrap;">
+                    ↩️ Send Back KRAs for Edit
+                </button>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- STAGE 2: EMPLOYEE SUBMITS SELF-RATINGS FOR EACH SECTION -->
+    {% elif is_owner and appraisal.status in ['KRA Approved (Eligible for Rating)', 'Rating Sent Back for Edit'] %}
+    <form method="post" action="{{ url_for('view_edit_appraisal', appraisal_id=appraisal.id) }}">
+        <input type="hidden" name="action" value="submit_ratings">
+
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 14px 18px; border-radius: 8px; margin-bottom: 20px;">
+            <h4 style="margin: 0 0 4px 0; color: #166534;">⭐ Stage 2: Provide Self-Ratings per KRA & KPI Section</h4>
+            <p style="margin: 0; font-size: 13.5px; color: #14532d;">
+                Your KRAs have been approved by your Manager! Rate your performance (1.0 to 5.0) for each KRA section and KPI below, and submit to your Manager.
+            </p>
+        </div>
+
+        {% for kra in appraisal.kras %}
+        <div style="border: 2px solid #cbd5e1; border-radius: 10px; padding: 18px; margin-bottom: 20px; background: #ffffff;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; margin-bottom: 12px;">
+                <div>
+                    <h4 style="margin: 0; color: #0f172a;">KRA {{ loop.index }}: {{ kra.title }}</h4>
+                    <p style="margin: 2px 0 0 0; font-size: 13px; color: #64748b;">{{ kra.description }}</p>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 12.5px;">Weight: {{ kra.weightage_percent }}%</span>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <label style="font-weight: 700; font-size: 12.5px; color: #0f172a;">KRA Self Rating (1-5):</label>
+                        <input type="number" step="0.1" min="1.0" max="5.0" name="kra_self_rating_{{ kra.id }}" value="{{ kra.self_rating or 4.0 }}" required style="width: 80px; padding: 4px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 700;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- KPIs List & Rating Input -->
+            <table class="list" style="font-size: 13px; margin-bottom: 10px;">
+                <thead>
+                    <tr style="background: #f8fafc;">
+                        <th>KPI Title</th><th>Formula</th><th>Target</th><th>Actual</th><th>Achievement %</th><th>KPI Weight</th><th>Self Rating (1.0 - 5.0)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for kpi in kra.kpis %}
+                    <tr>
+                        <td style="font-weight: 600;">{{ kpi.title }}</td>
+                        <td style="font-size: 12px; color: #475569;">{{ kpi.metric_formula_desc or '-' }}</td>
+                        <td>{{ kpi.target_value }} {{ kpi.unit }}</td>
+                        <td><strong>{{ kpi.actual_value }} {{ kpi.unit }}</strong></td>
+                        <td style="font-weight: 700; color: #166534;">{{ '%.1f%%'|format(kpi.achievement_percent) }}</td>
+                        <td>{{ kpi.weightage_percent }}%</td>
+                        <td>
+                            <input type="number" step="0.1" min="1.0" max="5.0" name="kpi_self_rating_{{ kpi.id }}" value="{{ kpi.self_rating or 4.0 }}" required style="width: 85px; padding: 4px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 700;">
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+
+        <div style="margin-bottom: 20px;">
+            <label style="font-weight: 700; display: block; margin-bottom: 5px;">Overall Self Rating (Out of 5.0):</label>
+            <input type="number" step="0.1" min="1.0" max="5.0" name="self_rating" value="{{ appraisal.self_rating or 4.0 }}" required style="width: 150px; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 700;">
+        </div>
+
+        <div style="margin-bottom: 25px;">
+            <label style="font-weight: 700; display: block; margin-bottom: 5px;">Self Comments & Overall Feedback:</label>
+            <textarea name="self_comments" rows="3" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-family: inherit;">{{ appraisal.self_comments or '' }}</textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="padding: 10px 24px; font-weight: 700;">
+            🚀 Submit Self-Ratings to Manager
+        </button>
+    </form>
+
+
+    <!-- STAGE 2 MANAGER ACTION: MANAGER EVALUATION & RATINGS -->
+    {% elif is_evaluator and appraisal.status == 'Self Review Submitted' %}
+    <div style="background: #f8fafc; border: 2px solid #2563eb; border-radius: 10px; padding: 20px; margin-bottom: 25px;">
+        <h3 style="margin-top: 0; color: #1e3a8a;">👔 Manager Rating Evaluation & Final Approval</h3>
+
+        <form method="post" action="{{ url_for('view_edit_appraisal', appraisal_id=appraisal.id) }}">
+            <input type="hidden" name="action" value="manager_review">
+
+            {% for kra in appraisal.kras %}
+            <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 15px; margin-bottom: 20px; background: #ffffff;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div>
+                        <h4 style="margin: 0; color: #0f172a;">KRA {{ loop.index }}: {{ kra.title }}</h4>
+                        <span style="font-size: 12.5px; color: #2563eb; font-weight: 700;">Emp Self-Rating: ⭐ {{ '%.1f'|format(kra.self_rating) if kra.self_rating else '-' }} / 5.0</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label style="font-weight: 700; font-size: 13px; color: #166534;">Manager KRA Rating (1-5):</label>
+                        <input type="number" step="0.1" min="1.0" max="5.0" name="kra_manager_rating_{{ kra.id }}" value="{{ kra.manager_rating or 4.5 }}" required style="width: 85px; padding: 4px 8px; border-radius: 6px; border: 1px solid #166534; font-weight: 700;">
+                    </div>
+                </div>
+
+                <table class="list" style="font-size: 13px;">
+                    <thead>
+                        <tr style="background: #f8fafc;">
+                            <th>KPI Title</th><th>Formula</th><th>Target</th><th>Actual</th><th>Achievement %</th><th>Emp Self Rating</th><th>Manager KPI Rating (1-5)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for kpi in kra.kpis %}
+                        <tr>
+                            <td style="font-weight: 600;">{{ kpi.title }}</td>
+                            <td style="font-size: 12px; color: #475569;">{{ kpi.metric_formula_desc or '-' }}</td>
+                            <td>{{ kpi.target_value }} {{ kpi.unit }}</td>
+                            <td><strong>{{ kpi.actual_value }} {{ kpi.unit }}</strong></td>
+                            <td style="font-weight: 700; color: #166534;">{{ '%.1f%%'|format(kpi.achievement_percent) }}</td>
+                            <td>⭐ {{ '%.1f'|format(kpi.self_rating) if kpi.self_rating else '-' }}</td>
+                            <td>
+                                <input type="number" step="0.1" min="1.0" max="5.0" name="kpi_manager_rating_{{ kpi.id }}" value="{{ kpi.manager_rating or 4.5 }}" required style="width: 85px; padding: 4px 8px; border-radius: 6px; border: 1px solid #166534; font-weight: 700;">
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endfor %}
+
+            <div style="margin-bottom: 15px;">
+                <label style="font-weight: 700; display: block; margin-bottom: 5px;">Overall Manager Performance Rating (Out of 5.0):</label>
+                <input type="number" step="0.1" min="1.0" max="5.0" name="rating" value="4.5" required style="width: 150px; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 700;">
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="font-weight: 700; display: block; margin-bottom: 5px;">Potential Rating (Out of 5.0):</label>
+                <input type="number" step="0.1" min="1.0" max="5.0" name="potential_rating" value="4.0" required style="width: 150px; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 700;">
+                <small style="display:block; color:#64748b; margin-top:4px;">Use this for future capacity, learning agility, and readiness for broader responsibility.</small>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="font-weight: 700; display: block; margin-bottom: 5px;">Evaluator Comments & Performance Review:</label>
+                <textarea name="evaluator_comments" rows="3" required placeholder="Enter overall performance feedback for employee..." style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-family: inherit;"></textarea>
+            </div>
+
+            <div style="display: flex; gap: 15px;">
+                <button type="submit" name="decision" value="complete" class="btn btn-primary" style="padding: 10px 24px; font-weight: 700;">
+                    ✅ Complete & Finalize Appraisal
+                </button>
+            </div>
+        </form>
+
+        <hr style="border: 0; border-top: 1px solid #cbd5e1; margin: 20px 0;">
+
+        <!-- SEND BACK RATINGS FOR EDIT FORM -->
+        <form method="post" action="{{ url_for('view_edit_appraisal', appraisal_id=appraisal.id) }}">
+            <input type="hidden" name="action" value="manager_review">
+            <input type="hidden" name="decision" value="send_back">
+
+            <label style="font-weight: 700; color: #991b1b; display: block; margin-bottom: 5px;">
+                ⚠️ Send Back Ratings to Employee for Edit:
+            </label>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" name="sendback_note" required placeholder="Reason for sending back self-ratings (e.g. Re-evaluate section ratings)..." style="flex: 1; padding: 8px 12px; border-radius: 6px; border: 1px solid #fca5a5;">
+                <button type="submit" class="btn btn-outline" style="color: #b91c1c; border-color: #fca5a5; font-weight: 700; whitespace: nowrap;">
+                    ↩️ Send Back Ratings
+                </button>
+            </div>
+        </form>
+    </div>
+
+
+    <!-- READ-ONLY READ-ONLY STAGE DISPLAY FOR SUBMITTED OR COMPLETED APPRAISALS -->
+    {% else %}
+    <div style="margin-bottom: 30px;">
+        {% if is_owner and appraisal.status == 'KRA Submitted for Approval' %}
+        <div style="background: #fef9c3; border: 1px solid #fde047; padding: 14px 18px; border-radius: 8px; margin-bottom: 20px;">
+            <span style="font-weight: 700; color: #854d0e;">🔒 KRAs Submitted to Manager:</span>
+            <span style="color: #713f12; font-size: 13.5px;">Your defined KRAs have been sent to your Manager for approval. Once your Manager approves them, the Rating section will unlock for you.</span>
+        </div>
+        {% elif is_owner and appraisal.status == 'Self Review Submitted' %}
+        <div style="background: #e0f2fe; border: 1px solid #bfdbfe; padding: 14px 18px; border-radius: 8px; margin-bottom: 20px;">
+            <span style="font-weight: 700; color: #0369a1;">🔒 Self Review Submitted:</span>
+            <span style="color: #1e3a8a; font-size: 13.5px;">Your self-ratings are currently being evaluated by your Manager. Entries cannot be edited while under review.</span>
+        </div>
+        {% endif %}
+
+        <h3 style="color: #1e293b; margin-top: 0;">KRAs & Metric-Driven KPIs Breakdown</h3>
+
+        {% if appraisal.kras %}
+        {% for kra in appraisal.kras %}
+        <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 15px; margin-bottom: 20px; background: #ffffff;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; margin-bottom: 12px;">
+                <div>
+                    <h4 style="margin: 0; color: #0f172a;">KRA {{ loop.index }}: {{ kra.title }}</h4>
+                    <p style="margin: 2px 0 0 0; font-size: 13px; color: #64748b;">{{ kra.description }}</p>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <span style="background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 12.5px;">Weightage: {{ kra.weightage_percent }}%</span>
+                    {% if kra.self_rating %}
+                    <span style="background: #f1f5f9; color: #0f172a; padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 12.5px;">Self: ⭐ {{ '%.1f'|format(kra.self_rating) }}</span>
+                    {% endif %}
+                    {% if kra.manager_rating %}
+                    <span style="background: #dcfce7; color: #166534; padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 12.5px;">Manager: ⭐ {{ '%.1f'|format(kra.manager_rating) }}</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <table class="list" style="font-size: 13px; margin-bottom: 10px;">
+                <thead>
+                    <tr style="background: #f8fafc;">
+                        <th>KPI Title</th><th>Formula</th><th>Target</th><th>Actual</th><th>Achievement %</th><th>Weight</th><th>Self Rating</th><th>Manager Rating</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for kpi in kra.kpis %}
+                    <tr>
+                        <td style="font-weight: 600;">{{ kpi.title }}</td>
+                        <td style="font-size: 12px; color: #475569;">{{ kpi.metric_formula_desc or '-' }}</td>
+                        <td>{{ kpi.target_value }} {{ kpi.unit }}</td>
+                        <td><strong>{{ kpi.actual_value }} {{ kpi.unit }}</strong></td>
+                        <td style="font-weight: 700; color: #166534;">{{ '%.1f%%'|format(kpi.achievement_percent) }}</td>
+                        <td>{{ kpi.weightage_percent }}%</td>
+                        <td>{{ '⭐ %.1f'|format(kpi.self_rating) if kpi.self_rating else '-' }}</td>
+                        <td style="font-weight: 700; color: #166534;">{{ '⭐ %.1f'|format(kpi.manager_rating) if kpi.manager_rating else '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+        {% else %}
+        <p style="color: #64748b; font-style: italic;">No KRAs/KPIs entered for this appraisal cycle yet.</p>
+        {% endif %}
+
+        {% if appraisal.self_comments or appraisal.evaluator_comments %}
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px;">
+                <h5 style="margin: 0 0 6px 0; color: #0f172a;">Employee Self Comments:</h5>
+                <p style="margin: 0; font-size: 13.5px; color: #475569;">{{ appraisal.self_comments or '-' }}</p>
+            </div>
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 8px;">
+                <h5 style="margin: 0 0 6px 0; color: #166534;">Manager Feedback:</h5>
+                <p style="margin: 0; font-size: 13.5px; color: #14532d;">{{ appraisal.evaluator_comments or '-' }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Dynamic KRA/KPI JavaScript Engine -->
+<script>
+let kraIndex = 0;
+
+function addKRA(title="", desc="", weight=20, kpis=[]) {
+    const container = document.getElementById('krasContainer');
+    if (!container) return;
+
+    if (container.children.length >= 5) {
+        alert("Maximum 5 KRAs allowed per appraisal.");
+        return;
+    }
+
+    const currentKra = kraIndex++;
+    const kraDiv = document.createElement('div');
+    kraDiv.className = 'kra-block';
+    kraDiv.id = `kra_block_${currentKra}`;
+    kraDiv.style.cssText = 'border: 2px solid #cbd5e1; border-radius: 10px; padding: 18px; margin-bottom: 25px; background: #ffffff;';
+
+    kraDiv.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h4 style="margin: 0; color: #0f172a;">Key Result Area (KRA) #${currentKra + 1}</h4>
+            <button type="button" class="btn btn-outline" onclick="removeKRA(${currentKra})" style="padding: 2px 8px; font-size: 12px; color: #b91c1c; border-color: #fca5a5;">🗑️ Remove KRA</button>
+        </div>
+        <div style="display: flex; gap: 15px; margin-bottom: 12px; flex-wrap: wrap;">
+            <div style="flex: 2; min-width: 200px;">
+                <label style="font-weight: 600; display: block; margin-bottom: 4px;">KRA Title:</label>
+                <input type="text" name="kra_title_${currentKra}" value="${title}" required placeholder="e.g. Technical Excellence & Project Delivery" style="width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1;">
+            </div>
+            <div style="width: 140px;">
+                <label style="font-weight: 600; display: block; margin-bottom: 4px;">Weightage (%):</label>
+                <input type="number" step="1" min="1" max="100" name="kra_weight_${currentKra}" value="${weight}" required style="width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 700;">
+            </div>
+        </div>
+
+        <div style="margin-top: 15px; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <strong style="color: #0369a1; font-size: 13px;">Metric-Driven KPIs (Max 6 for this KRA):</strong>
+                <button type="button" class="btn btn-outline" onclick="addKPI(${currentKra})" style="padding: 2px 8px; font-size: 11px;">➕ Add KPI</button>
+            </div>
+            <div id="kpisContainer_${currentKra}"></div>
+        </div>
+    `;
+
+    container.appendChild(kraDiv);
+
+    if (kpis && kpis.length > 0) {
+        kpis.forEach(kp => addKPI(currentKra, kp.title, kp.formula, kp.target, kp.actual, kp.unit, kp.weight));
+    } else {
+        addKPI(currentKra, "Training & Upskilling %", "Total Training Scheduled / Total Training Planned * 100", 100, 90, "%", 100);
+    }
+}
+
+function removeKRA(kIdx) {
+    const el = document.getElementById(`kra_block_${kIdx}`);
+    if (el) el.remove();
+}
+
+function addKPI(kIdx, title="", formula="", target=100, actual=90, unit="%", weight=100) {
+    const kpiBox = document.getElementById(`kpisContainer_${kIdx}`);
+    if (!kpiBox) return;
+
+    if (kpiBox.children.length >= 6) {
+        alert("Maximum 6 KPIs allowed per KRA.");
+        return;
+    }
+
+    const kpIdx = kpiBox.children.length;
+    const kpiDiv = document.createElement('div');
+    kpiDiv.style.cssText = 'border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 10px;';
+
+    kpiDiv.innerHTML = `
+        <div style="display: flex; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; align-items: flex-end;">
+            <div style="flex: 2; min-width: 180px;">
+                <label style="font-size: 11px; font-weight: 600;">KPI Title:</label>
+                <input type="text" name="kpi_title_${kIdx}_${kpIdx}" value="${title}" required placeholder="e.g. Conduct Scheduled Trainings" style="width: 100%; padding: 4px 8px; font-size: 12px; border-radius: 4px; border: 1px solid #cbd5e1;">
+            </div>
+            <div style="flex: 2; min-width: 180px;">
+                <label style="font-size: 11px; font-weight: 600;">Metric Formula:</label>
+                <input type="text" name="kpi_formula_${kIdx}_${kpIdx}" value="${formula}" placeholder="Total Training Scheduled / Total Training Planned * 100" style="width: 100%; padding: 4px 8px; font-size: 12px; border-radius: 4px; border: 1px solid #cbd5e1;">
+            </div>
+            <div style="width: 75px;">
+                <label style="font-size: 11px; font-weight: 600;">Target:</label>
+                <input type="number" step="0.1" name="kpi_target_${kIdx}_${kpIdx}" value="${target}" required style="width: 100%; padding: 4px 6px; font-size: 12px; border-radius: 4px; border: 1px solid #cbd5e1;">
+            </div>
+            <div style="width: 75px;">
+                <label style="font-size: 11px; font-weight: 600;">Actual:</label>
+                <input type="number" step="0.1" name="kpi_actual_${kIdx}_${kpIdx}" value="${actual}" required style="width: 100%; padding: 4px 6px; font-size: 12px; border-radius: 4px; border: 1px solid #cbd5e1; font-weight: 700; color: #166534;">
+            </div>
+            <div style="width: 50px;">
+                <label style="font-size: 11px; font-weight: 600;">Unit:</label>
+                <input type="text" name="kpi_unit_${kIdx}_${kpIdx}" value="${unit}" style="width: 100%; padding: 4px 6px; font-size: 12px; border-radius: 4px; border: 1px solid #cbd5e1;">
+            </div>
+            <div style="width: 65px;">
+                <label style="font-size: 11px; font-weight: 600;">Weight %:</label>
+                <input type="number" step="1" name="kpi_weight_${kIdx}_${kpIdx}" value="${weight}" required style="width: 100%; padding: 4px 6px; font-size: 12px; border-radius: 4px; border: 1px solid #cbd5e1;">
+            </div>
+        </div>
+    `;
+
+    kpiBox.appendChild(kpiDiv);
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    {% if is_owner and appraisal.status in ['Initiated', 'KRA Draft', 'KRA Sent Back for Edit'] %}
+    if (document.getElementById('krasContainer')) {
+        {% if appraisal.kras %}
+            {% for kra in appraisal.kras %}
+            addKRA(
+                "{{ kra.title }}",
+                "{{ kra.description or '' }}",
+                {{ kra.weightage_percent }},
+                [
+                    {% for kpi in kra.kpis %}
+                    {
+                        title: "{{ kpi.title }}",
+                        formula: "{{ kpi.metric_formula_desc or '' }}",
+                        target: {{ kpi.target_value }},
+                        actual: {{ kpi.actual_value }},
+                        unit: "{{ kpi.unit or '%' }}",
+                        weight: {{ kpi.weightage_percent }}
+                    },
+                    {% endfor %}
+                ]
+            );
+            {% endfor %}
+        {% else %}
+            addKRA("Project Execution & Technical Delivery", "Timely delivery of core projects", 50);
+            addKRA("Training & Upskilling", "Attending & conducting planned skill sessions", 50);
+        {% endif %}
+    }
+    {% endif %}
+});
+</script>
+{% endblock %}

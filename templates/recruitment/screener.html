@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}CV Screener & Keyword Matching{% endblock %}
+{% block page_title %}CV Screener & Automated Keyword Matching Engine{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+    <div>
+        <h3 style="margin: 0; color: #0f172a;">🔍 CV Screener & Candidate Resume Matcher</h3>
+        <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">
+            Upload candidate details and resumes against active JDs to calculate live Skill & Experience Match % Scores.
+        </p>
+    </div>
+    <a href="{{ url_for('recruitment_dashboard') }}" class="btn btn-outline">⬅️ Back to Dashboard</a>
+</div>
+
+<div class="card" style="margin-bottom: 25px;">
+    <h3 style="margin-top: 0; color: #0f172a;">⚡ Automated Bulk CV Scanner & JD Matcher</h3>
+    <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">
+        Select an approved Manpower Requisition. Upload single/bulk resume files or paste CV text — the system will automatically extract candidate name, email, phone, experience, and match skill keywords directly against the Requisition JD!
+    </p>
+    
+    {% if requisitions %}
+    <form method="post" enctype="multipart/form-data">
+        <div class="field" style="margin-bottom: 20px;">
+            <label for="requisition_id" style="font-weight: 700; font-size: 15px; color: #0f172a;">Select Approved Job Requisition & JD *</label>
+            <select id="requisition_id" name="requisition_id" required style="font-weight: 700; padding: 10px; font-size: 15px; border: 2px solid #2563eb; border-radius: 8px;">
+                {% for r in requisitions %}
+                <option value="{{ r.id }}">
+                    REQ-{{ "%03d"|format(r.id) }}: {{ r.title }} ({{ r.department }}) — Required Skills: [ {{ r.key_skills }} ] | Min Exp: {{ r.required_exp_years }} yrs
+                </option>
+                {% endfor %}
+            </select>
+            <div class="hint">The scanner will parse CV text and match all skill keywords against the JD criteria of this requisition.</div>
+        </div>
+
+        <div class="grid-2" style="gap: 20px;">
+            <div class="field" style="background: #f8fafc; border: 2px dashed #cbd5e1; padding: 18px; border-radius: 10px;">
+                <label for="resumes" style="font-weight: 700; color: #0f172a;">📁 Upload Resume Files (Single or Bulk Select)</label>
+                <input type="file" id="resumes" name="resumes" multiple accept=".pdf,.txt,.docx,.png,.jpg,.jpeg" style="margin-top: 8px;">
+                <div class="hint" style="margin-top: 6px;">Select one or multiple files (PDF, TXT, DOCX). The scanner parses candidate details automatically.</div>
+            </div>
+
+            <div class="field" style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 18px; border-radius: 10px;">
+                <label for="raw_cv_text" style="font-weight: 700; color: #0f172a;">📝 Or Paste Candidate Resume / CV Text</label>
+                <textarea id="raw_cv_text" name="raw_cv_text" rows="3" placeholder="Paste candidate resume text or summary here..." style="font-family: inherit; font-size: 13px;"></textarea>
+            </div>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <button type="submit" class="btn btn-primary" style="padding: 12px 28px; font-weight: 800; font-size: 15px; background: #2563eb; border-color: #2563eb;">
+                ⚡ Auto-Scan Resumes & Calculate Live Match % Scores
+            </button>
+        </div>
+    </form>
+    {% else %}
+    <p style="color: #64748b; font-style: italic;">No approved job requisitions available. Approve a manpower requisition first to start screening candidates.</p>
+    {% endif %}
+</div>
+
+<!-- Screened Candidates Sorted by Match Score -->
+<div class="card">
+    <h3 style="margin-top: 0;">🎯 Ranked Candidate Profiles (Sorted by Match % Score)</h3>
+    
+    {% if candidates %}
+    <div class="table-scroll">
+        <table class="list">
+            <thead>
+                <tr>
+                    <th>Match % Score</th><th>Candidate Name</th><th>Applied Position</th><th>Exp</th><th>Key Skills</th><th>Current Role</th><th>Resume File</th><th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in candidates %}
+                <tr>
+                    <td>
+                        <span class="badge" style="background: {{ '#dcfce7' if c.match_score_percent >= 75 else '#fef9c3' if c.match_score_percent >= 50 else '#fee2e2' }}; color: {{ '#15803d' if c.match_score_percent >= 75 else '#a16207' if c.match_score_percent >= 50 else '#b91c1c' }}; font-weight: 800; font-size: 13px; padding: 6px 12px;">
+                            🎯 {{ '%.1f'|format(c.match_score_percent) }}% Match
+                        </span>
+                    </td>
+                    <td>
+                        <strong>{{ c.full_name }}</strong><br>
+                        <span style="font-size: 12px; color: #64748b;">{{ c.email }} | {{ c.phone or '-' }}</span>
+                    </td>
+                    <td style="font-weight: 600; color: #2563eb;">{{ c.requisition.title if c.requisition else '-' }}</td>
+                    <td>{{ c.total_exp_years }} yrs</td>
+                    <td style="font-size: 12.5px; color: #475569;">{{ c.key_skills or '-' }}</td>
+                    <td>{{ c.current_designation or '-' }} ({{ c.current_company or '-' }})</td>
+                    <td>
+                        {% if c.resume_filename %}
+                        <a href="{{ url_for('static', filename='uploads/' + c.resume_filename) }}" target="_blank" style="font-size: 12px; font-weight: 600;">📎 View CV</a>
+                        {% else %}
+                        <span style="font-size: 12px; color: #94a3b8;">No File</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="row-actions" style="display: flex; gap: 6px; align-items: center;">
+                            {% if c.status == 'Screened' %}
+                            <a href="{{ url_for('interviews_calendar') }}" class="btn btn-sm btn-primary" style="padding: 3px 8px; font-size: 11px; font-weight: 700;">
+                                📅 Schedule Interview
+                            </a>
+                            {% else %}
+                            <span class="badge badge-complete" style="font-size: 10.5px;">{{ c.status }}</span>
+                            {% endif %}
+                            <a href="{{ url_for('edit_candidate', candidate_id=c.id) }}" class="btn btn-sm btn-outline" style="padding: 3px 8px; font-size: 11px; font-weight: 600;">
+                                ✏️ Edit
+                            </a>
+                            <form action="{{ url_for('delete_candidate_route', candidate_id=c.id) }}" method="post" onsubmit="return confirm('Delete candidate {{ c.full_name }} and CV screening record?');" style="display: inline;">
+                                <button type="submit" class="btn btn-sm btn-danger" style="padding: 3px 8px; font-size: 11px; background: #dc2626; border-color: #dc2626;">
+                                    🗑️ Delete
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="sq"></div>
+        No candidates screened yet. Fill the form above to screen candidate CVs.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -102,7 +102,7 @@ def recalculate_all_balances_for_type(leave_type, year=None):
     """Used when admin edits a leave type's quota — refresh everyone's allotment."""
     from models import User
     year = year or date.today().year
-    people = User.query.filter(User.role.in_(["employee", "manager"])).all()
+    people = User.query.filter(User.role.in_(["employee", "manager", "demo_admin"])).all()
     for person in people:
         if not person.profile:
             continue

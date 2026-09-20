@@ -1,0 +1,68 @@
+{% extends "base.html" %} {% block title %}Salary Components{% endblock %} {%
+block page_title %}Salary Components{% endblock %} {% block content %}
+
+<div class="card">
+  <h3>Salary Components</h3>
+
+  <p class="card-sub">
+    Configure the salary structure used during payroll calculation.
+  </p>
+
+  <table class="list">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Calculation Basis</th>
+        <th>Value</th>
+        <th>Basic</th>
+        <th>Order</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for c in components %}
+
+      <tr>
+        <td>{{ c.name }}</td>
+
+        <td>{{ c.component_type.title() }}</td>
+
+        <td>{{ c.calc_basis.replace("_"," ").title() }}</td>
+
+        <td>{{ c.calc_value }}</td>
+
+        <td>{% if c.is_basic %} ✔ {% endif %}</td>
+
+        <td>{{ c.calc_order }}</td>
+
+        <td>
+    {% if c.is_active %}
+        <span style="color:green;">Active</span>
+    {% else %}
+        <span style="color:red;">Inactive</span>
+    {% endif %}
+</td>
+
+<td>
+    <a href="{{ url_for('edit_pay_component', component_id=c.id) }}"
+       class="btn btn-outline">
+        Edit
+    </a>
+</td>
+      </tr>
+
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <br />
+
+  <a href="{{ url_for('add_pay_component') }}" class="btn btn-primary">
+    + Add Salary Component
+  </a>
+</div>
+
+{% endblock %}

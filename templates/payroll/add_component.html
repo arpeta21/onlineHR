@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Add Salary Component{% endblock %}
+{% block page_title %}Add Salary Component{% endblock %}
+
+{% block content %}
+
+<div class="card">
+
+    <h3>Add Salary Component</h3>
+
+    <p class="card-sub">
+        Create a new earning or deduction component for payroll.
+    </p>
+
+    <form method="POST">
+
+        <label>Component Name</label>
+        <input type="text"
+               name="name"
+               class="form-control"
+               placeholder="Example: Basic Salary"
+               required>
+
+        <br>
+
+        <label>Component Type</label>
+
+        <select name="component_type" class="form-control">
+
+            <option value="earning">Earning</option>
+
+            <option value="deduction">Deduction</option>
+
+        </select>
+
+        <br>
+
+        <label>Calculation Basis</label>
+
+        <select name="calc_basis" class="form-control">
+
+            <option value="flat">Flat Amount</option>
+
+            <option value="percent_ctc">Percentage of CTC</option>
+
+            <option value="percent_basic">Percentage of Basic</option>
+
+            <option value="percent_gross">Percentage of Gross</option>
+
+        </select>
+
+        <br>
+
+        <label>Calculation Value</label>
+
+        <input
+            type="number"
+            step="0.01"
+            name="calc_value"
+            class="form-control"
+            required>
+
+        <br>
+
+        <label>Calculation Order</label>
+
+        <input
+            type="number"
+            name="calc_order"
+            value="1"
+            class="form-control">
+
+        <br>
+
+        <label>
+
+            <input type="checkbox" name="is_basic">
+
+            This is Basic Salary
+
+        </label>
+
+        <br><br>
+
+        <label>
+
+            <input type="checkbox"
+                   name="is_active"
+                   checked>
+
+            Active
+
+        </label>
+
+        <br><br>
+
+        <button class="btn btn-primary">
+
+            Save Salary Component
+
+        </button>
+
+        <a href="{{ url_for('pay_components') }}"
+           class="btn btn-outline">
+
+            Cancel
+
+        </a>
+
+    </form>
+
+</div>
+
+{% endblock %}

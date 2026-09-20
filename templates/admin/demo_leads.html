@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Sales Demo Leads{% endblock %}
+{% block page_title %}Incoming Product Demo Requests & Sales Leads{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <div>
+        <h3 style="margin: 0; color: #0f172a;">📅 Sales Demo Leads & Prospect Inquiries</h3>
+        <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">
+            Demo requests submitted via the Product Brochure presentation deck.
+        </p>
+    </div>
+    <a href="{{ url_for('brochure_presentation') }}" target="_blank" class="btn btn-outline" style="font-weight: 600;">
+        🌐 View Product Brochure Deck
+    </a>
+</div>
+
+<div class="card">
+    {% if leads %}
+    <div class="table-scroll">
+        <table class="list">
+            <thead>
+                <tr>
+                    <th>Lead ID</th>
+                    <th>Prospect Name</th>
+                    <th>Work Email</th>
+                    <th>Company Name</th>
+                    <th>Team Size</th>
+                    <th>Requested Notes</th>
+                    <th>Date Received</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lead in leads %}
+                <tr>
+                    <td style="font-weight: 700; color: #2563eb;">LEAD-{{ "%03d"|format(lead.id) }}</td>
+                    <td style="font-weight: 700; color: #0f172a;">{{ lead.full_name }}</td>
+                    <td style="color: #2563eb; font-weight: 600;">{{ lead.work_email }}</td>
+                    <td style="font-weight: 600;">{{ lead.company_name }}</td>
+                    <td><span class="badge" style="background: #f1f5f9; color: #334155;">{{ lead.team_size or '-' }}</span></td>
+                    <td style="font-size: 13px; color: #475569; max-width: 200px;">{{ lead.notes or '-' }}</td>
+                    <td style="font-size: 12.5px; color: #64748b;">{{ lead.created_at.strftime('%d-%b-%Y %I:%M %p') if lead.created_at else '-' }}</td>
+                    <td>
+                        {% if lead.status == 'New Lead' %}
+                        <span class="badge" style="background: #fef9c3; color: #a16207; font-weight: 800;">🔥 New Lead</span>
+                        {% elif lead.status == 'Contacted' %}
+                        <span class="badge" style="background: #dbeafe; color: #1e40af; font-weight: 700;">📞 Contacted</span>
+                        {% elif lead.status == 'Scheduled' %}
+                        <span class="badge badge-complete">📅 Demo Scheduled</span>
+                        {% else %}
+                        <span class="badge" style="background: #f1f5f9; color: #475569;">{{ lead.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <form action="{{ url_for('update_demo_lead_status', lead_id=lead.id) }}" method="post" style="display: flex; gap: 4px;">
+                            <select name="status" style="font-size: 11px; padding: 3px 6px;">
+                                <option value="New Lead" {{ 'selected' if lead.status == 'New Lead' }}>New Lead</option>
+                                <option value="Contacted" {{ 'selected' if lead.status == 'Contacted' }}>Contacted</option>
+                                <option value="Scheduled" {{ 'selected' if lead.status == 'Scheduled' }}>Scheduled</option>
+                                <option value="Closed" {{ 'selected' if lead.status == 'Closed' }}>Closed</option>
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-primary" style="padding: 2px 8px; font-size: 11px;">Update</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="sq"></div>
+        No demo requests received yet. When prospective clients request a demo on the brochure page, their contact details will appear here.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

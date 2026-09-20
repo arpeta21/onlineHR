@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Appraisal Management{% endblock %}
+{% block page_title %}Performance Appraisal Management Dashboard{% endblock %}
+
+{% block content %}
+<!-- Initiate Appraisal Card -->
+<div class="card" style="margin-bottom: 25px; border-top: 4px solid #2563eb;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 15px;">
+        <h3 style="margin: 0;">⚡ Initiate Performance Appraisal Cycle</h3>
+        <a href="{{ url_for('export_appraisal_report') }}" class="btn btn-outline" style="font-weight: 600;">
+            📥 Export Appraisal Report (CSV)
+        </a>
+    </div>
+
+    <form method="post" action="{{ url_for('admin_initiate_appraisal') }}">
+        <div style="display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 200px;">
+                <label style="font-weight: 600; display: block; margin-bottom: 5px;">Review Period:</label>
+                <select name="period_type" required style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 700;">
+                    <option value="Q1 (Sep-Oct)">Q1 (September to October)</option>
+                    <option value="Q2 (Mar-Apr)">Q2 (March to April)</option>
+                </select>
+            </div>
+            <div style="width: 130px;">
+                <label style="font-weight: 600; display: block; margin-bottom: 5px;">Year Popup:</label>
+                <input type="number" name="year" value="2026" required style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 700;">
+            </div>
+            <div style="flex: 1; min-width: 220px;">
+                <label style="font-weight: 600; display: block; margin-bottom: 5px;">Target Employee:</label>
+                <select name="user_id" required style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
+                    <option value="all">⚡ ALL Active Employees (Bulk Cycle)</option>
+                    {% for e in employees %}
+                    <option value="{{ e.id }}">{{ e.employee_code }} — {{ e.profile.full_name if e.profile else e.employee_code }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="padding: 10px 24px; font-weight: 700;">
+            🚀 Initiate Appraisal Cycle
+        </button>
+    </form>
+</div>
+
+<!-- Appraisal Cycle Records Table -->
+<div class="card">
+    <h3 style="margin-top: 0; margin-bottom: 20px;">All Performance Appraisals</h3>
+
+    {% if appraisals %}
+    <table class="list" style="font-size: 13px;">
+        <thead>
+            <tr>
+                <th>Emp Code</th>
+                <th>Employee Name</th>
+                <th>Review Period</th>
+                <th>Evaluator / Manager</th>
+                <th>Self Rating</th>
+                <th>Manager Rating</th>
+                <th>Weighted Score</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for a in appraisals %}
+            <tr>
+                <td style="font-weight: 700; color: #0f172a;">{{ a.user.employee_code }}</td>
+                <td style="font-weight: 600;">
+                    {{ a.user.profile.full_name if a.user.profile else a.user.employee_code }}
+                </td>
+                <td style="font-weight: 700; color: #2563eb;">{{ a.review_period }}</td>
+                <td style="font-size: 12px; color: #475569;">
+                    {{ a.evaluator.profile.full_name if a.evaluator and a.evaluator.profile else '-' }}
+                </td>
+                <td style="font-weight: 700;">
+                    {{ '⭐ %.1f / 5'|format(a.self_rating) if a.self_rating else '-' }}
+                </td>
+                <td style="font-weight: 700; color: #15803d;">
+                    {{ '⭐ %.1f / 5'|format(a.rating) if a.rating else '-' }}
+                </td>
+                <td style="font-weight: 700; color: #0284c7;">
+                    {{ '%.1f%%'|format(a.weighted_score) if a.weighted_score is not none else '-' }}
+                </td>
+                <td>
+                    {% if a.status == 'Completed' %}
+                    <span style="background: #dcfce7; color: #15803d; padding: 4px 10px; border-radius: 12px; font-weight: 700;">Completed</span>
+                    {% elif a.status == 'Self Review Submitted' %}
+                    <span style="background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 12px; font-weight: 700;">Self Submitted</span>
+                    {% elif a.status == 'Sent Back for Edit' %}
+                    <span style="background: #fee2e2; color: #b91c1c; padding: 4px 10px; border-radius: 12px; font-weight: 700;">Sent Back for Edit</span>
+                    {% else %}
+                    <span style="background: #fef9c3; color: #a16207; padding: 4px 10px; border-radius: 12px; font-weight: 700;">Initiated</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('view_edit_appraisal', appraisal_id=a.id) }}" class="btn btn-primary" style="padding: 4px 10px; font-size: 12px; text-decoration: none;">View / Evaluate</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: #64748b; text-align: center; padding: 20px;">No appraisals initiated yet. Use the form above to launch a cycle!</p>
+    {% endif %}
+</div>
+{% endblock %}

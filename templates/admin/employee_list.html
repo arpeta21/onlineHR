@@ -7,7 +7,12 @@
   <form method="GET" style="flex-grow:1; max-width: 360px;">
     <input type="text" name="q" value="{{ q }}" placeholder="Search by name or employee ID…">
   </form>
-  <a href="{{ url_for('admin_create_employee') }}" class="btn btn-primary">Add employee</a>
+  <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+    <a href="{{ url_for('export_employee_report') }}" class="btn btn-outline" style="font-weight: 600;">📥 Export Employee Report (CSV)</a>
+    <a href="{{ url_for('admin_bulk_employee_template') }}" class="btn btn-outline">Download CSV template</a>
+    <a href="{{ url_for('admin_bulk_import_employees') }}" class="btn btn-primary">Bulk upload</a>
+    <a href="{{ url_for('admin_create_employee') }}" class="btn btn-primary">Add employee</a>
+  </div>
 </div>
 
 <div class="card">
@@ -62,6 +67,13 @@
             {% else %}
             <form action="{{ url_for('admin_reactivate_employee', user_id=u.id) }}" method="POST">
               <button type="submit" class="link-btn">Reactivate</button>
+            </form>
+            {% endif %}
+            
+            {% if u.id != current_user.id %}
+            <form action="{{ url_for('admin_delete_employee', user_id=u.id) }}" method="POST"
+                  onsubmit="return confirm('Permanently delete employee {{ u.profile.full_name if u.profile else u.employee_code }}?');">
+              <button type="submit" class="link-btn" style="color:#dc2626; font-weight:700;">🗑️ Delete</button>
             </form>
             {% endif %}
           </div>

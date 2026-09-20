@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Shared Interview Calendar{% endblock %}
+{% block page_title %}Manager Shared Interview Calendar & Evaluation{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+    <div>
+        <h3 style="margin: 0; color: #0f172a;">📅 Shared Manager Interview Calendar & Evaluation</h3>
+        <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">
+            Book interview slots, view blocked interviewer calendars, access candidate CVs, and submit evaluation ratings.
+        </p>
+    </div>
+    <a href="{{ url_for('recruitment_dashboard') }}" class="btn btn-outline">⬅️ Back to Dashboard</a>
+</div>
+
+<!-- Schedule Interview Form -->
+<div class="card" style="margin-bottom: 25px;">
+    <h3 style="margin-top: 0; color: #0f172a;">➕ Schedule Interview Slot</h3>
+    
+    {% if candidates %}
+    <form method="post">
+        <div class="grid-2">
+            <div class="field">
+                <label for="candidate_id">Select Screened Candidate *</label>
+                <select id="candidate_id" name="candidate_id" required style="font-weight: 700;">
+                    {% for c in candidates %}
+                    <option value="{{ c.id }}">{{ c.full_name }} — {{ c.requisition.title if c.requisition else 'Position' }} (Match: {{ '%.1f'|format(c.match_score_percent) }}%)</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="field">
+                <label for="interviewer_id">Assigned Interviewer (Manager) *</label>
+                <select id="interviewer_id" name="interviewer_id" required style="font-weight: 700;">
+                    {% for m in managers %}
+                    <option value="{{ m.id }}">{{ m.profile.full_name if m.profile else m.employee_code }} ({{ m.role.capitalize() }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="grid-3">
+            <div class="field">
+                <label for="round_name">Interview Round *</label>
+                <select id="round_name" name="round_name" required style="font-weight: 600;">
+                    <option value="Technical Round 1" selected>Technical Round 1</option>
+                    <option value="Technical Round 2">Technical Round 2</option>
+                    <option value="Managerial Round">Managerial Round</option>
+                    <option value="HR Round">HR Round</option>
+                    <option value="Final Discussion">Final Discussion</option>
+                </select>
+            </div>
+            <div class="field">
+                <label for="scheduled_time">Date & Time Slot *</label>
+                <input type="datetime-local" id="scheduled_time" name="scheduled_time" required style="font-weight: 700;">
+            </div>
+            <div class="field">
+                <label for="location_or_link">Meeting Link / Room</label>
+                <input type="text" id="location_or_link" name="location_or_link" placeholder="e.g. Google Meet Link / Conference Room A">
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="padding: 10px 24px; font-weight: 700;">
+            📅 Schedule Interview & Block Calendar
+        </button>
+    </form>
+    {% else %}
+    <p style="color: #64748b; font-style: italic;">No screened candidates available for scheduling. Use the CV Screener to screen candidates first.</p>
+    {% endif %}
+</div>
+
+<!-- Scheduled Interviews Calendar List -->
+<div class="card">
+    <h3 style="margin-top: 0;">📆 Scheduled Interviews & Evaluation Feedback</h3>
+    
+    {% if interviews %}
+    {% for inv in interviews %}
+    <div style="border: 2px solid {{ '#cbd5e1' if inv.status == 'Scheduled' else '#bbf7d0' }}; border-radius: 10px; padding: 18px; margin-bottom: 20px; background: #ffffff;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;">
+            <div>
+                <span style="background: #e0f2fe; color: #0369a1; padding: 3px 10px; border-radius: 12px; font-weight: 700; font-size: 12px;">{{ inv.round_name }}</span>
+                <h4 style="margin: 6px 0 2px 0; color: #0f172a;">Candidate: {{ inv.candidate.full_name }} ({{ inv.candidate.requisition.title if inv.candidate.requisition else 'Position' }})</h4>
+                <p style="margin: 0; font-size: 13px; color: #64748b;">
+                    Interviewer: <strong>{{ inv.interviewer.profile.full_name if inv.interviewer.profile else inv.interviewer.employee_code }}</strong> |
+                    Email: {{ inv.candidate.email }} |
+                    Phone: {{ inv.candidate.phone or '-' }}
+                </p>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-weight: 800; font-size: 15px; color: #2563eb;">📅 {{ inv.scheduled_time.strftime('%d-%b-%Y at %I:%M %p') }}</div>
+                <div style="font-size: 12.5px; color: #475569; margin-top: 2px;">📍 {{ inv.location_or_link or 'In-Person' }}</div>
+            </div>
+        </div>
+
+        {% if inv.candidate.resume_filename %}
+        <div style="margin-bottom: 12px;">
+            <a href="{{ url_for('static', filename='uploads/' + inv.candidate.resume_filename) }}" target="_blank" class="btn btn-sm btn-outline" style="font-weight: 600;">
+                📎 View Candidate Resume / CV
+            </a>
+        </div>
+        {% endif %}
+
+        <!-- Evaluation Feedback Form for Assigned Manager/Admin -->
+        {% if inv.status == 'Scheduled' and (current_user.role in ['admin', 'demo_admin'] or current_user.id == inv.interviewer_id) %}
+        <form method="post" action="{{ url_for('submit_interview_feedback_route', interview_id=inv.id) }}" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px;">
+            <h5 style="margin: 0 0 10px 0; color: #0f172a;">✍️ Submit Interview Evaluation & Ratings</h5>
+            
+            <div class="grid-3" style="margin-bottom: 10px;">
+                <div>
+                    <label style="font-weight: 700; font-size: 12.5px;">Manager Rating (1.0 to 5.0) *</label>
+                    <input type="number" step="0.1" min="1.0" max="5.0" name="manager_rating" value="4.5" required style="font-weight: 700; padding: 6px;">
+                </div>
+                <div>
+                    <label style="font-weight: 700; font-size: 12.5px;">Decision *</label>
+                    <select name="decision" required style="font-weight: 700; padding: 6px;">
+                        <option value="Shortlist Next Round" selected>Shortlist for Next Round</option>
+                        <option value="Final Discussion Closure">Push for Final Discussion & HR Closure</option>
+                        <option value="Reject">Reject Candidate</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-weight: 700; font-size: 12.5px;">Next Round Interviewer Email</label>
+                    <input type="email" name="next_interviewer_email" placeholder="next_interviewer@company.com" style="padding: 6px;">
+                </div>
+            </div>
+
+            <div style="margin-bottom: 10px;">
+                <label style="font-weight: 700; font-size: 12.5px;">Manager Feedback & Comments *</label>
+                <textarea name="manager_feedback" rows="2" required placeholder="Enter candidate strengths, technical depth, and recommendation notes..." style="width: 100%; padding: 8px; font-family: inherit;"></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="padding: 8px 18px; font-weight: 700;">
+                ✅ Submit Feedback & Update Candidate Pipeline
+            </button>
+        </form>
+        {% elif inv.status == 'Completed' %}
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 12px; border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <strong style="color: #166534;">Evaluation Completed (Rating: ⭐ {{ '%.1f'|format(inv.manager_rating or 0) }}/5.0)</strong>
+                <span class="badge badge-complete">{{ inv.decision }}</span>
+            </div>
+            <p style="margin: 0; font-size: 13px; color: #14532d;">Feedback: {{ inv.manager_feedback or '-' }}</p>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state">
+        <div class="sq"></div>
+        No interviews scheduled yet. Fill the schedule form above to book interview slots.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

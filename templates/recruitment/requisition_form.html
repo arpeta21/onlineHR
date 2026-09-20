@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}New Manpower Requisition{% endblock %}
+{% block page_title %}Submit New Manpower Requisition Request{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 800px; margin: 0 auto;">
+    <h3 style="margin-top: 0; color: #0f172a;">📋 Manpower Requisition & Job Opening Request Form</h3>
+    <p style="color: #64748b; font-size: 14px; margin-bottom: 22px;">
+        Fill in position requirements, target CTC range, experience, and key skills. Requests route to your Reporting Manager / Admin for approval.
+    </p>
+
+    <form method="post">
+        <div class="grid-2">
+            <div class="field">
+                <label for="title">Job Title / Designation *</label>
+                <input type="text" id="title" name="title" required placeholder="e.g. Senior Full-Stack Engineer">
+            </div>
+            <div class="field">
+                <label for="department">Department *</label>
+                <input type="text" id="department" name="department" required placeholder="e.g. Engineering & IT">
+            </div>
+        </div>
+
+        <div class="grid-3">
+            <div class="field">
+                <label for="number_of_positions">No. of Positions *</label>
+                <input type="number" id="number_of_positions" name="number_of_positions" min="1" value="1" required style="font-weight: 700;">
+            </div>
+            <div class="field">
+                <label for="target_ctc_min">Min Target CTC (LPA)</label>
+                <input type="number" step="0.5" id="target_ctc_min" name="target_ctc_min" placeholder="e.g. 8.0">
+            </div>
+            <div class="field">
+                <label for="target_ctc_max">Max Target CTC (LPA)</label>
+                <input type="number" step="0.5" id="target_ctc_max" name="target_ctc_max" placeholder="e.g. 14.0">
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="field">
+                <label for="required_exp_years">Required Experience (Years) *</label>
+                <input type="number" step="0.5" id="required_exp_years" name="required_exp_years" value="3.0" required>
+            </div>
+            <div class="field">
+                <label for="priority">Priority Level *</label>
+                <select id="priority" name="priority" required style="font-weight: 700;">
+                    <option value="Medium" selected>Medium Priority</option>
+                    <option value="Low">Low Priority</option>
+                    <option value="High">High Priority</option>
+                    <option value="Urgent">🔥 Urgent Hiring</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="field">
+            <label for="qualification">Educational Qualification</label>
+            <input type="text" id="qualification" name="qualification" placeholder="e.g. B.Tech / B.E. / M.Tech in CS / IT">
+        </div>
+
+        <div class="field">
+            <label for="key_skills">Key Skills & Screening Keywords (Comma-Separated) *</label>
+            <input type="text" id="key_skills" name="key_skills" required placeholder="e.g. Python, Flask, React, SQL, REST APIs, Git" style="font-weight: 600;">
+            <div class="hint">These skills will be matched against candidate resumes in the CV Screener to compute live Match % scores.</div>
+        </div>
+
+        <div class="field">
+            <label for="reason_for_hiring">Justification / Reason for Hiring</label>
+            <textarea id="reason_for_hiring" name="reason_for_hiring" rows="3" placeholder="Explain team growth, replacement, or project expansion needs..."></textarea>
+        </div>
+
+        <div class="field">
+            <label for="job_description_text">Job Description (JD) Details</label>
+            <textarea id="job_description_text" name="job_description_text" rows="5" placeholder="Enter key responsibilities, requirements, and benefits..."></textarea>
+        </div>
+
+        <div style="display: flex; gap: 15px; margin-top: 25px;">
+            <button type="submit" class="btn btn-primary" style="padding: 10px 24px; font-weight: 700;">
+                🚀 Submit Manpower Requisition
+            </button>
+            <a href="{{ url_for('recruitment_dashboard') }}" class="btn btn-outline">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

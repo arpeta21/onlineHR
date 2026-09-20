@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Payslip - {{ payslip.month_label() }}{% endblock %}
+{% block page_title %}Payslip - {{ payslip.month_label() }}{% endblock %}
+
+{% block content %}
+<div class="payslip-container" style="background: #ffffff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 850px; margin: 0 auto;">
+    
+    <!-- Action Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px;">
+        <h3 style="margin: 0; color: #1e293b;">Salary Slip</h3>
+        <div>
+            <button onclick="window.print()" class="btn btn-secondary" style="margin-right: 10px; padding: 8px 16px;">🖨️ Print</button>
+            <a href="{{ url_for('download_payslip_pdf', payslip_id=payslip.id) }}" class="btn btn-primary" style="padding: 8px 16px; text-decoration: none;">📥 Download PDF</a>
+        </div>
+    </div>
+
+    <!-- Company Header -->
+    <div style="text-align: center; margin-bottom: 25px;">
+        <h2 style="margin: 0; color: #0f172a; font-size: 24px; font-weight: 700;">HRMS ENTERPRISE SOLUTIONS</h2>
+        <h4 style="margin: 5px 0 0 0; color: #475569; font-weight: 600; text-transform: uppercase;">PAYSLIP FOR {{ payslip.month_label() }}</h4>
+    </div>
+
+    <!-- Employee Information Grid -->
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <tr>
+                <td style="padding: 6px; font-weight: 600; color: #475569; width: 18%;">Employee Code:</td>
+                <td style="padding: 6px; font-weight: 700; color: #0f172a; width: 32%;">{{ payslip.user.employee_code }}</td>
+                <td style="padding: 6px; font-weight: 600; color: #475569; width: 18%;">Employee Name:</td>
+                <td style="padding: 6px; font-weight: 700; color: #0f172a; width: 32%;">{{ payslip.user.profile.full_name if payslip.user.profile else '-' }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 6px; font-weight: 600; color: #475569;">Designation:</td>
+                <td style="padding: 6px; color: #1e293b;">{{ payslip.user.profile.designation if payslip.user.profile else '-' }}</td>
+                <td style="padding: 6px; font-weight: 600; color: #475569;">Department:</td>
+                <td style="padding: 6px; color: #1e293b;">{{ payslip.user.profile.department if payslip.user.profile else '-' }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 6px; font-weight: 600; color: #475569;">Date of Joining:</td>
+                <td style="padding: 6px; color: #1e293b;">{{ payslip.user.profile.date_of_joining.strftime('%d-%b-%Y') if payslip.user.profile and payslip.user.profile.date_of_joining else '-' }}</td>
+                <td style="padding: 6px; font-weight: 600; color: #475569;">PAN Number:</td>
+                <td style="padding: 6px; color: #1e293b;">{{ payslip.user.profile.pan_number if payslip.user.profile else '-' }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 6px; font-weight: 600; color: #475569;">Bank Account:</td>
+                <td style="padding: 6px; color: #1e293b;">{{ payslip.user.profile.bank_account_number if payslip.user.profile else '-' }}</td>
+                <td style="padding: 6px; font-weight: 600; color: #475569;">IFSC Code:</td>
+                <td style="padding: 6px; color: #1e293b;">{{ payslip.user.profile.bank_ifsc_code if payslip.user.profile else '-' }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Salary Breakdown Table -->
+    <div style="margin-bottom: 25px;">
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; font-size: 14px;">
+            <thead>
+                <tr style="background: #f1f5f9;">
+                    <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: left; background: #e0f2fe; color: #0369a1;">EARNINGS</th>
+                    <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: right; background: #e0f2fe; color: #0369a1;">AMOUNT (₹)</th>
+                    <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: left; background: #fee2e2; color: #991b1b;">DEDUCTIONS</th>
+                    <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: right; background: #fee2e2; color: #991b1b;">AMOUNT (₹)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set earnings = payslip.lines | selectattr('component_type', 'equalto', 'earning') | list %}
+                {% set deductions = payslip.lines | selectattr('component_type', 'equalto', 'deduction') | list %}
+                {% set max_count = [earnings | length, deductions | length] | max %}
+                
+                {% for i in range(max_count) %}
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1;">{{ earnings[i].component_name if i < earnings|length else '' }}</td>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">{{ '₹ {:,.2f}'.format(earnings[i].amount) if i < earnings|length else '' }}</td>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1;">{{ deductions[i].component_name if i < deductions|length else '' }}</td>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">{{ '₹ {:,.2f}'.format(deductions[i].amount) if i < deductions|length else '' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr style="background: #f8fafc; font-weight: 700;">
+                    <td style="padding: 10px; border: 1px solid #cbd5e1;">Gross Earnings</td>
+                    <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: right; color: #0369a1;">₹ {{ "{:,.2f}".format(payslip.gross_pay) }}</td>
+                    <td style="padding: 10px; border: 1px solid #cbd5e1;">Total Deductions</td>
+                    <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: right; color: #991b1b;">₹ {{ "{:,.2f}".format(payslip.total_deductions) }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <!-- Net Salary Box -->
+    <div style="background: #f0fdf4; border: 2px solid #86efac; border-radius: 8px; padding: 15px 20px; margin-bottom: 30px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-size: 16px; font-weight: 700; color: #166534;">NET PAYABLE AMOUNT:</span>
+            <span style="font-size: 22px; font-weight: 800; color: #15803d;">₹ {{ "{:,.2f}".format(payslip.net_pay) }}</span>
+        </div>
+        <div style="font-size: 13px; color: #166534; font-style: italic;">
+            <strong>In Words:</strong> {{ net_words }}
+        </div>
+    </div>
+
+    <!-- Signatures -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 40px; padding-top: 20px;">
+        <div style="font-size: 12px; color: #64748b; font-style: italic;">
+            This is a computer-generated document and does not require a physical signature.
+        </div>
+        <div style="text-align: right;">
+            <div style="font-weight: 700; color: #1e293b;">Authorized Signatory</div>
+            <div style="font-size: 13px; color: #64748b;">HR & Payroll Department</div>
+        </div>
+    </div>
+
+</div>
+
+<style>
+@media print {
+    body { background: white !important; }
+    .sidebar, .topbar, button, a.btn { display: none !important; }
+    .main { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+    .payslip-container { box-shadow: none !important; padding: 0 !important; width: 100% !important; }
+}
+</style>
+{% endblock %}

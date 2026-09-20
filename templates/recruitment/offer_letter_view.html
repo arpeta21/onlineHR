@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Offer Letter — {{ candidate.full_name }}{% endblock %}
+{% block page_title %}Official Offer Letter Document — {{ candidate.full_name }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;" class="no-print">
+    <div>
+        <h3 style="margin: 0; color: #0f172a;">📜 Official Offer Letter</h3>
+        <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">
+            Issued on {{ candidate.updated_at.strftime('%d-%b-%Y') if candidate.updated_at else 'Today' }} for {{ candidate.full_name }}.
+        </p>
+    </div>
+    <div style="display: flex; gap: 10px;">
+        <button onclick="window.print()" class="btn btn-primary" style="font-weight: 700;">
+            🖨️ Print / Save PDF Offer Letter
+        </button>
+        <a href="{{ url_for('recruitment_dashboard') }}" class="btn btn-outline">⬅️ Back to Dashboard</a>
+    </div>
+</div>
+
+<!-- Printable Formal Offer Letter Card -->
+<div class="card" style="padding: 45px 50px; background: #ffffff; border: 2px solid #cbd5e1; border-radius: 12px; max-width: 850px; margin: 0 auto; color: #0f172a; line-height: 1.6;" id="printableOffer">
+    
+    <!-- Letterhead Header -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #2563eb; padding-bottom: 18px; margin-bottom: 30px;">
+        <div>
+            <h1 style="margin: 0; font-size: 26px; color: #0f172a; font-weight: 800; font-family: 'Source Sans 3', sans-serif;">Sanvit HR Enterprise</h1>
+            <p style="margin: 4px 0 0 0; color: #475569; font-size: 13px; font-weight: 600;">Human Resources & Talent Acquisition Department</p>
+        </div>
+        <div style="text-align: right;">
+            <div style="font-size: 12.5px; color: #64748b; font-weight: 700; text-transform: uppercase;">REF NO: OFFER/{{ "%04d"|format(candidate.id) }}/{{ candidate.joining_date.strftime('%Y') if candidate.joining_date else '2026' }}</div>
+            <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin-top: 4px;">Date: {{ candidate.updated_at.strftime('%d %B %Y') if candidate.updated_at else 'Today' }}</div>
+        </div>
+    </div>
+
+    <!-- Recipient Address -->
+    <div style="margin-bottom: 25px;">
+        <p style="margin: 0 0 4px 0; font-weight: 700; font-size: 15px;">To,</p>
+        <p style="margin: 0; font-weight: 800; font-size: 18px; color: #2563eb;">{{ candidate.full_name }}</p>
+        <p style="margin: 2px 0 0 0; color: #475569; font-size: 14px;">Email: {{ candidate.email }} | Phone: {{ candidate.phone or '-' }}</p>
+    </div>
+
+    <!-- Letter Subject -->
+    <div style="background: #eff6ff; border-left: 4px solid #2563eb; padding: 12px 16px; margin-bottom: 25px; border-radius: 4px;">
+        <h4 style="margin: 0; color: #1e40af; font-size: 15px;">
+            Subject: Letter of Offer for the position of <u>{{ candidate.requisition.title if candidate.requisition else 'Position' }}</u>
+        </h4>
+    </div>
+
+    <!-- Body Content -->
+    <p style="font-size: 14.5px; margin-bottom: 15px;">
+        Dear <strong>{{ candidate.full_name }}</strong>,
+    </p>
+
+    <p style="font-size: 14.5px; margin-bottom: 15px;">
+        Following your interviews and evaluations, we are pleased to offer you employment with <strong>Sanvit HR Enterprise</strong> for the position of <strong>{{ candidate.requisition.title if candidate.requisition else 'Designation' }}</strong> in the <strong>{{ candidate.requisition.department if candidate.requisition else 'Operations' }}</strong> department.
+    </p>
+
+    <!-- Key Offer Parameters Table -->
+    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; border: 1px solid #cbd5e1;">
+        <tr style="background: #f8fafc;">
+            <th style="text-align: left; padding: 10px 14px; border: 1px solid #cbd5e1; color: #475569; font-size: 12px; text-transform: uppercase;">Offer Terms</th>
+            <th style="text-align: left; padding: 10px 14px; border: 1px solid #cbd5e1; color: #475569; font-size: 12px; text-transform: uppercase;">Details</th>
+        </tr>
+        <tr>
+            <td style="padding: 10px 14px; border: 1px solid #cbd5e1; font-weight: 600;">Designation / Title</td>
+            <td style="padding: 10px 14px; border: 1px solid #cbd5e1; font-weight: 700; color: #0f172a;">{{ candidate.requisition.title if candidate.requisition else '-' }}</td>
+        </tr>
+        <tr>
+            <td style="padding: 10px 14px; border: 1px solid #cbd5e1; font-weight: 600;">Department</td>
+            <td style="padding: 10px 14px; border: 1px solid #cbd5e1;">{{ candidate.requisition.department if candidate.requisition else '-' }}</td>
+        </tr>
+        <tr>
+            <td style="padding: 10px 14px; border: 1px solid #cbd5e1; font-weight: 600;">Offered Annual CTC</td>
+            <td style="padding: 10px 14px; border: 1px solid #cbd5e1; font-weight: 800; color: #166534; font-size: 16px;">
+                ₹ {{ '%.2f'|format(candidate.offered_ctc) }} Lakhs Per Annum (LPA)
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 10px 14px; border: 1px solid #cbd5e1; font-weight: 600;">Confirmed Joining Date</td>
+            <td style="padding: 10px 14px; border: 1px solid #cbd5e1; font-weight: 800; color: #2563eb; font-size: 15px;">
+                📅 {{ candidate.joining_date.strftime('%d %B %Y') if candidate.joining_date else '-' }}
+            </td>
+        </tr>
+    </table>
+
+    {% if candidate.hr_notes %}
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px; font-size: 13.5px;">
+        <strong>HR Onboarding Notes:</strong> {{ candidate.hr_notes }}
+    </div>
+    {% endif %}
+
+    <p style="font-size: 14px; margin-bottom: 30px;">
+        Please sign and return the duplicate copy of this letter as confirmation of your acceptance of this offer and your joining date. We look forward to welcoming you to the Sanvit HR team!
+    </p>
+
+    <!-- Signatures -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 50px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+        <div>
+            <div style="font-weight: 700; color: #0f172a;">For Sanvit HR Enterprise</div>
+            <div style="height: 45px;"></div>
+            <div style="font-weight: 800; color: #2563eb;">Authorized Signatory</div>
+            <div style="font-size: 12px; color: #64748b;">Human Resources Department</div>
+        </div>
+        <div style="text-align: right;">
+            <div style="font-weight: 700; color: #0f172a;">Candidate Acceptance</div>
+            <div style="height: 45px;"></div>
+            <div style="font-weight: 800; color: #0f172a;">{{ candidate.full_name }}</div>
+            <div style="font-size: 12px; color: #64748b;">Signature & Date</div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .no-print, .sidebar, .topbar { display: none !important; }
+    .main { background: #ffffff !important; padding: 0 !important; }
+    .content { padding: 0 !important; max-width: 100% !important; }
+    #printableOffer { border: none !important; box-shadow: none !important; padding: 0 !important; }
+}
+</style>
+{% endblock %}

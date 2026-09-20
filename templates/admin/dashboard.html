@@ -1,8 +1,5 @@
-{% extends "base.html" %}
-{% block title %}Overview{% endblock %}
-{% block page_title %}Admin overview{% endblock %}
-
-{% block content %}
+{% extends "base.html" %} {% block title %}Overview{% endblock %} {% block
+page_title %}Admin overview{% endblock %} {% block content %}
 <div class="stat-row">
   <div class="stat-card">
     <div class="num">{{ total_employees }}</div>
@@ -21,21 +18,43 @@
     <div class="lbl">Profiles pending</div>
   </div>
   <div class="stat-card">
-    <a href="{{ url_for('admin_leave_requests') }}" style="text-decoration:none; color:inherit; display:block;">
+    <a
+      href="{{ url_for('admin_leave_requests') }}"
+      style="text-decoration: none; color: inherit; display: block"
+    >
       <div class="num">{{ pending_leaves }}</div>
       <div class="lbl">Leave requests pending</div>
     </a>
   </div>
 </div>
 
+{% include "partials/overview_culture.html" %}
+
+<div class="card">
+  <h3>Policy assistant</h3>
+  <p class="card-sub">Search the uploaded employee handbook and policy documents from the overview page.</p>
+  <form method="get" action="{{ url_for('hr_resources', tab='resources') }}">
+    <div class="search-row">
+      <input type="text" name="q" placeholder="Ask a policy question, e.g. leave approval" required>
+      <button class="btn btn-primary" type="submit">Quick answer</button>
+    </div>
+  </form>
+</div>
+
 <div class="card">
   <h3>Recently added</h3>
-  <p class="card-sub">The newest people added to the SaarthiEV HRMS Portal.</p>
+  <p class="card-sub">The newest people added to the Sanvit HR Portal.</p>
 
   {% if recent %}
   <table class="list">
     <thead>
-      <tr><th>Name</th><th>Employee ID</th><th>Role</th><th>Status</th><th></th></tr>
+      <tr>
+        <th>Name</th>
+        <th>Employee ID</th>
+        <th>Role</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
     </thead>
     <tbody>
       {% for u in recent %}
@@ -45,12 +64,14 @@
         <td><span class="badge badge-{{ u.role }}">{{ u.role }}</span></td>
         <td>
           {% if u.profile and u.profile.profile_completed %}
-            <span class="badge badge-complete">Complete</span>
+          <span class="badge badge-complete">Complete</span>
           {% else %}
-            <span class="badge badge-pending">Pending</span>
+          <span class="badge badge-pending">Pending</span>
           {% endif %}
         </td>
-        <td><a href="{{ url_for('admin_view_employee', user_id=u.id) }}">View</a></td>
+        <td>
+          <a href="{{ url_for('admin_view_employee', user_id=u.id) }}">View</a>
+        </td>
       </tr>
       {% endfor %}
     </tbody>
@@ -63,6 +84,17 @@
   {% endif %}
 </div>
 
-<a href="{{ url_for('admin_create_employee') }}" class="btn btn-primary">Add employee</a>
-<a href="{{ url_for('admin_leave_requests') }}" class="btn btn-outline">Review leave requests</a>
+<div style="margin-top: 20px">
+  <a href="{{ url_for('admin_create_employee') }}" class="btn btn-primary">
+    Add Employee
+  </a>
+
+  <a href="{{ url_for('admin_leave_requests') }}" class="btn btn-outline">
+    Review Leave Requests
+  </a>
+
+  <a href="{{ url_for('payroll_dashboard') }}" class="btn btn-success">
+    Payroll
+  </a>
+</div>
 {% endblock %}

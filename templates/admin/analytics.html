@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+{% block title %}Analytics{% endblock %}
+{% block page_title %}People analytics{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="section-heading">
+    <div>
+      <span class="eyebrow">Workforce pulse</span>
+      <h3>Team analytics snapshot</h3>
+    </div>
+    <span class="section-icon">📈</span>
+  </div>
+
+  <form method="get" action="{{ url_for('admin_analytics_dashboard') }}" class="inline-filter-bar" style="margin-bottom: 20px;">
+    <label>Month</label>
+    <select name="month">
+      {% for m in range(1,13) %}
+      <option value="{{ m }}" {% if m == selected_month %}selected{% endif %}>{{ '%02d'|format(m) }}</option>
+      {% endfor %}
+    </select>
+    <label>Year</label>
+    <input type="number" name="year" value="{{ selected_year }}" min="2024" max="2100">
+    <button type="submit" class="btn btn-primary">Refresh</button>
+  </form>
+
+  <div class="stat-row">
+    <div class="stat-card">
+      <div class="num">{{ summary.top_rated_employee }}</div>
+      <div class="lbl">Top-rated employee</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">{{ '%.2f'|format(summary.average_rating) if summary.average_rating else '0.00' }}</div>
+      <div class="lbl">Average rating</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">{{ summary.attendance_top_status }}</div>
+      <div class="lbl">Most common attendance status</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">{{ summary.location_leader }}</div>
+      <div class="lbl">Most common location</div>
+    </div>
+  </div>
+
+  <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
+    <a class="btn btn-primary" href="{{ url_for('export_analytics_dashboard', month=selected_month, year=selected_year) }}">Export CSV</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="section-heading">
+    <div><span class="eyebrow">Visual trend</span><h3>Performance and engagement snapshot</h3></div>
+    <span class="section-icon">📊</span>
+  </div>
+
+  <div class="resource-columns">
+    <div>
+      <h4 style="margin-bottom: 12px;">Rating distribution</h4>
+      {% set total_rating_count = summary.rating_distribution['Outstanding'] + summary.rating_distribution['Good'] + summary.rating_distribution['Needs attention'] %}
+      {% if total_rating_count %}
+      {% for label, value in summary.rating_distribution.items() %}
+      {% set pct = (value / total_rating_count * 100) if total_rating_count else 0 %}
+      <div style="margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+          <span>{{ label }}</span>
+          <strong>{{ value }}</strong>
+        </div>
+        <div style="background: #eef2f7; border-radius: 999px; overflow: hidden; height: 10px; width: 100%;">
+          <div style="width: {{ pct }}%; background: {% if label == 'Outstanding' %}#2e7d32{% elif label == 'Good' %}#f5b700{% else %}#d32f2f{% endif %}; height: 100%;"></div>
+        </div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <p class="muted">No rating distribution is available yet.</p>
+      {% endif %}
+    </div>
+
+    <div>
+      <h4 style="margin-bottom: 12px;">Top employee scores</h4>
+      {% if summary.rating_trend %}
+      <div style="display: flex; align-items: end; gap: 10px; min-height: 180px;">
+        {% for item in summary.rating_trend[:6] %}
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <div style="width: 100%; display: flex; justify-content: center; align-items: end; height: 120px;">
+            <div style="width: 100%; max-width: 44px; background: linear-gradient(180deg, #5b8def 0%, #2d5ee8 100%); border-radius: 8px 8px 0 0; height: {{ (item.value / 5 * 100) if item.value else 0 }}%; min-height: 8px;"></div>
+          </div>
+          <div style="font-size: 11px; text-align: center; line-height: 1.2;">{{ item.label[:10] }}</div>
+          <strong>{{ '%.2f'|format(item.value) }}</strong>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="muted">No employee scores are available for the chart yet.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="section-heading">
+    <div><span class="eyebrow">Narrative insight</span><h3>Descriptive, predictive & prescriptive analysis</h3></div>
+    <span class="section-icon">🔍</span>
+  </div>
+
+  <div style="display: grid; gap: 16px;">
+    <div>
+      <h4 style="margin-bottom: 10px;">Descriptive</h4>
+      <ul>
+        {% for point in summary.descriptive_points %}
+        <li>{{ point }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div>
+      <h4 style="margin-bottom: 10px;">Predictive</h4>
+      <ul>
+        {% for point in summary.predictive_points %}
+        <li>{{ point }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div>
+      <h4 style="margin-bottom: 10px;">Prescriptive</h4>
+      <ul>
+        {% for point in summary.prescriptive_points %}
+        <li>{{ point }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="resource-columns">
+  <div class="card">
+    <div class="section-heading">
+      <div><span class="eyebrow">Department</span><h3>Team quality by department</h3></div>
+      <span class="section-icon">🏢</span>
+    </div>
+    {% if summary.department_breakdown %}
+    <table class="list">
+      <thead>
+        <tr><th>Department</th><th>Employees</th><th>Avg rating</th></tr>
+      </thead>
+      <tbody>
+        {% for item in summary.department_breakdown %}
+        <tr>
+          <td>{{ item.department }}</td>
+          <td>{{ item.count }}</td>
+          <td>{{ '%.2f'|format(item.average_rating) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="muted">No department drill-down is available yet.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="section-heading">
+      <div><span class="eyebrow">Manager</span><h3>Manager performance view</h3></div>
+      <span class="section-icon">👥</span>
+    </div>
+    {% if summary.manager_breakdown %}
+    <table class="list">
+      <thead>
+        <tr><th>Manager</th><th>Employees</th><th>Avg rating</th></tr>
+      </thead>
+      <tbody>
+        {% for item in summary.manager_breakdown %}
+        <tr>
+          <td>{{ item.manager }}</td>
+          <td>{{ item.count }}</td>
+          <td>{{ '%.2f'|format(item.average_rating) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="muted">No manager drill-down is available yet.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="resource-columns">
+  <div class="card">
+    <div class="section-heading">
+      <div><span class="eyebrow">Ratings</span><h3>Employee performance distribution</h3></div>
+      <span class="section-icon">⭐</span>
+    </div>
+    {% if rating_rows %}
+    <table class="list">
+      <thead>
+        <tr><th>Employee</th><th>Manager rating</th><th>Self rating</th></tr>
+      </thead>
+      <tbody>
+        {% for row in rating_rows %}
+        <tr>
+          <td>{{ row.employee_name }}</td>
+          <td>{{ '%.2f'|format(row.rating) if row.rating else '—' }}</td>
+          <td>{{ '%.2f'|format(row.self_rating) if row.self_rating else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="muted">No appraisal ratings are available for the selected year yet.</p>
+    {% endif %}
+    <div style="margin-top: 18px;">
+      {% for label, value in summary.rating_distribution.items() %}
+      <div class="mini-stat"><strong>{{ label }}</strong><span>{{ value }}</span></div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-heading">
+      <div><span class="eyebrow">Attendance</span><h3>Month status summary</h3></div>
+      <span class="section-icon">⏱️</span>
+    </div>
+    {% if attendance_rows %}
+    <table class="list">
+      <thead>
+        <tr><th>Status</th><th>Count</th></tr>
+      </thead>
+      <tbody>
+        {% for row in attendance_rows %}
+        <tr>
+          <td>{{ row.status }}</td>
+          <td>{{ row.count }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="muted">No attendance data exists for this period.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="section-heading">
+      <div><span class="eyebrow">Location</span><h3>Employee location spread</h3></div>
+      <span class="section-icon">📍</span>
+    </div>
+    {% if location_rows %}
+    <table class="list">
+      <thead>
+        <tr><th>City</th><th>Employees</th></tr>
+      </thead>
+      <tbody>
+        {% for row in location_rows %}
+        <tr>
+          <td>{{ row.city }}</td>
+          <td>{{ row.count }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="muted">No location data is available yet. Ask employees to complete their city details.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

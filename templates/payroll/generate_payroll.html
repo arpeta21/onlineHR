@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Generate Payroll{% endblock %}
+{% block page_title %}Payroll Run & Attendance-Linked Processing{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom: 25px;">
+    <h3 style="margin-top: 0; margin-bottom: 10px;">Select Payroll Period</h3>
+    <form method="get" action="{{ url_for('generate_payroll') }}" style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 150px;">
+            <label style="font-weight: 600; display: block; margin-bottom: 5px;">Month:</label>
+            <select name="month" onchange="this.form.submit()" style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
+                {% for m in range(1, 13) %}
+                <option value="{{ m }}" {{ 'selected' if m == month }}>
+                    {{ ['January','February','March','April','May','June','July','August','September','October','November','December'][m-1] }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="flex: 1; min-width: 120px;">
+            <label style="font-weight: 600; display: block; margin-bottom: 5px;">Year:</label>
+            <input type="number" name="year" value="{{ year }}" onchange="this.form.submit()" style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
+        </div>
+
+        <div>
+            <button type="submit" class="btn btn-outline">Load Attendance & Data</button>
+        </div>
+    </form>
+</div>
+
+<form method="post" action="{{ url_for('generate_payroll') }}">
+    <input type="hidden" name="month" value="{{ month }}">
+    <input type="hidden" name="year" value="{{ year }}">
+    <input type="hidden" name="process_payroll" value="1">
+
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <div>
+                <h3 style="margin: 0;">Employee Payroll Processing Inputs — {{ month_name }} {{ year }}</h3>
+                <p style="color: #64748b; font-size: 13px; margin: 4px 0 0 0;">
+                    Attendance LOP days and OT hours have been auto-fetched. Add Arrears, Incentives, or Deductions below — <strong>Estimated Net Pay updates live as you type!</strong>
+                </p>
+            </div>
+            <button type="submit" class="btn btn-primary" style="padding: 10px 24px; font-weight: 700;">
+                ⚡ Process & Snapshot Payslips
+            </button>
+        </div>
+
+        {% if emp_payroll_inputs %}
+        <div style="overflow-x: auto;">
+            <table class="list" style="font-size: 13px;">
+                <thead>
+                    <tr style="background: #f8fafc;">
+                        <th>Emp ID</th>
+                        <th>Name</th>
+                        <th>Monthly CTC (₹)</th>
+                        <th>Payable Days</th>
+                        <th>Incentive / Bonus (₹)</th>
+                        <th>Arrears (₹)</th>
+                        <th>OT Hours</th>
+                        <th>Loss of Pay (₹)</th>
+                        <th>PF Deduction (₹)</th>
+                        <th style="background: #f0fdf4; color: #166534;">Calculated Net Pay (₹)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in emp_payroll_inputs %}
+                    {% set e = item.employee %}
+                    {% set s = item.stats %}
+                    <tr id="emp-row-{{ e.id }}" data-ctc="{{ s.monthly_ctc }}" data-ptax="200">
+                        <td style="font-weight: 700; color: #0f172a;">{{ e.employee_code }}</td>
+                        <td style="font-weight: 600;">
+                            {{ e.profile.full_name if e.profile else e.employee_code }}
+                            {% if e.profile and e.profile.is_founding_member %}
+                            <span style="font-size: 10px; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 6px;">👑 Founding</span>
+                            {% endif %}
+                        </td>
+                        <td style="font-weight: 600; color: #166534;">₹{{ "{:,.2f}".format(s.monthly_ctc) }}</td>
+                        <td>
+                            <strong>{{ s.payable_days }}</strong> / {{ s.total_month_days }} days
+                        </td>
+                        <td>
+                            <input type="number" step="0.01" min="0" name="incentive_{{ e.id }}" id="incentive_{{ e.id }}" value="0.0" placeholder="0.00" oninput="recalcRow({{ e.id }})" style="width: 85px; padding: 4px 6px; border-radius: 4px; border: 1px solid #cbd5e1; font-weight: 600; color: #166534;">
+                        </td>
+                        <td>
+                            <input type="number" step="0.01" min="0" name="arrears_{{ e.id }}" id="arrears_{{ e.id }}" value="0.0" placeholder="0.00" oninput="recalcRow({{ e.id }})" style="width: 85px; padding: 4px 6px; border-radius: 4px; border: 1px solid #cbd5e1; font-weight: 600; color: #166534;">
+                        </td>
+                        <td>
+                            <input type="number" step="0.5" min="0" name="ot_hours_{{ e.id }}" id="ot_hours_{{ e.id }}" value="{{ s.ot_hours }}" oninput="recalcRow({{ e.id }})" style="width: 65px; padding: 4px 6px; border-radius: 4px; border: 1px solid #cbd5e1;">
+                        </td>
+                        <td>
+                            <input type="number" step="0.01" min="0" name="loss_of_pay_{{ e.id }}" id="loss_of_pay_{{ e.id }}" value="{{ s.auto_lop_amount }}" placeholder="0.00" oninput="recalcRow({{ e.id }})" style="width: 90px; padding: 4px 6px; border-radius: 4px; border: 1px solid #cbd5e1; color: #b91c1c; font-weight: 600;">
+                        </td>
+                        <td>
+                            <input type="number" step="0.01" min="0" name="pf_deduction_{{ e.id }}" id="pf_deduction_{{ e.id }}" value="{{ s.default_pf }}" oninput="recalcRow({{ e.id }})" style="width: 85px; padding: 4px 6px; border-radius: 4px; border: 1px solid #cbd5e1;">
+                        </td>
+                        <td style="background: #f0fdf4; vertical-align: middle;">
+                            <span id="net_pay_display_{{ e.id }}" style="font-size: 14px; font-weight: 800; color: #15803d;">
+                                ₹{{ "{:,.2f}".format(s.monthly_ctc - s.auto_lop_amount) }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p style="color: #64748b; text-align: center; padding: 20px;">No active employees found.</p>
+        {% endif %}
+    </div>
+</form>
+
+<script>
+function recalcRow(empId) {
+    const row = document.getElementById('emp-row-' + empId);
+    if (!row) return;
+
+    const ctc = parseFloat(row.getAttribute('data-ctc')) || 0.0;
+    const ptax = parseFloat(row.getAttribute('data-ptax')) || 200.0;
+
+    const incentive = parseFloat(document.getElementById('incentive_' + empId).value) || 0.0;
+    const arrears = parseFloat(document.getElementById('arrears_' + empId).value) || 0.0;
+    const otHours = parseFloat(document.getElementById('ot_hours_' + empId).value) || 0.0;
+    const lop = parseFloat(document.getElementById('loss_of_pay_' + empId).value) || 0.0;
+    const pf = parseFloat(document.getElementById('pf_deduction_' + empId).value) || 0.0;
+
+    const basic = ctc * 0.5;
+    const otHourlyRate = (basic / 208.0) * 1.5;
+    const otAmount = otHours * otHourlyRate;
+
+    const totalGross = ctc + arrears + incentive + otAmount;
+    const totalDeductions = pf + ptax + lop;
+    const netPay = Math.max(0, totalGross - totalDeductions);
+
+    const display = document.getElementById('net_pay_display_' + empId);
+    if (display) {
+        display.innerText = '₹ ' + netPay.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+}
+
+// Initial calculation pass on load
+document.addEventListener("DOMContentLoaded", function() {
+    {% for item in emp_payroll_inputs %}
+    recalcRow({{ item.employee.id }});
+    {% endfor %}
+});
+</script>
+{% endblock %}

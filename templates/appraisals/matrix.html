@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Team 9-box Matrix{% endblock %}
+{% block page_title %}Team 9-box Matrix{% endblock %}
+{% block content %}
+<div class="matrix-intro"><div><span class="eyebrow">Manager view</span><h1>Performance and potential, together.</h1><p>This view is private to you and uses completed appraisals for your reporting team.</p></div><a class="btn btn-outline" href="{{ url_for('manager_appraisals') }}">Back to team appraisals</a></div>
+<div class="matrix-shell">
+  <div class="matrix-y-label">Potential</div>
+  <div class="matrix-content">
+    <div class="matrix-grid">
+      {% for potential in ['high', 'medium', 'low'] %}
+      {% for performance in ['low', 'medium', 'high'] %}
+      {% set key = (potential, performance) %}
+      <div class="matrix-cell matrix-{{ potential }}-{{ performance }}"><div class="matrix-cell-head"><strong>{{ labels[key] }}</strong><span>{{ cells.get(key, [])|length }}</span></div>{% for appraisal in cells.get(key, []) %}<a href="{{ url_for('view_edit_appraisal', appraisal_id=appraisal.id) }}">{{ appraisal.user.profile.full_name if appraisal.user.profile else appraisal.user.employee_code }}</a>{% else %}<small>No completed assessment</small>{% endfor %}</div>
+      {% endfor %}
+      {% endfor %}
+    </div>
+    <div class="matrix-x-label">Current performance <span>Needs focus</span><span>Strong</span><span>Exceptional</span></div>
+  </div>
+</div>
+<div class="matrix-summary"><div class="card"><strong>{{ assessed_count }}</strong><span>People placed</span></div><div class="card"><strong>{{ unassessed|length }}</strong><span>Need potential rating</span></div></div>
+{% if unassessed %}<div class="card matrix-unassessed"><h3>Complete the picture</h3><p>These completed appraisals need a potential rating before they can appear in the matrix.</p>{% for appraisal in unassessed %}<a href="{{ url_for('view_edit_appraisal', appraisal_id=appraisal.id) }}">{{ appraisal.user.profile.full_name if appraisal.user.profile else appraisal.user.employee_code }}</a>{% if not loop.last %}<span> · </span>{% endif %}{% endfor %}</div>{% endif %}
+{% endblock %}

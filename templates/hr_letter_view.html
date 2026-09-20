@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}{{ letter.subject }}{% endblock %}
+{% block page_title %}{{ letter.subject }}{% endblock %}
+{% block content %}
+<div class="letter-actions no-print"><a class="btn btn-outline" href="{{ url_for('hr_resources', tab='letters') }}">Back to letters</a><a class="btn btn-primary" href="{{ url_for('download_hr_letter', letter_id=letter.id) }}">Download letter</a><button class="btn btn-secondary" type="button" onclick="window.print()">Print / save PDF</button></div>
+<article class="official-letter">
+  <header><div><h1>Sanvit HR Enterprise</h1><p>Human Resources Department</p></div><div class="letter-ref"><span>Official document</span><b>{{ letter.issued_at.strftime('%d %B %Y') if letter.issued_at else '' }}</b></div></header>
+  <div class="letter-recipient"><b>{{ letter.employee.profile.full_name if letter.employee.profile else letter.employee.employee_code }}</b><span>{{ letter.employee.employee_code }}</span></div>
+  <h2>{{ letter.subject }}</h2>
+  <div class="letter-body">{{ letter.content }}</div>
+  <footer><b>For Sanvit HR Enterprise</b><span>Authorized Signatory</span></footer>
+</article>
+<style>
+@media print { .no-print, .sidebar, .topbar { display:none !important; } .main, .content { padding:0 !important; max-width:none !important; } .official-letter { border:0 !important; box-shadow:none !important; } }
+</style>
+{% endblock %}

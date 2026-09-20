@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}Recruitment & ATS{% endblock %}
+{% block page_title %}Recruitment & Manpower Requisition (ATS){% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+    <div>
+        <h3 style="margin: 0; color: #0f172a;">🤝 Recruitment & Applicant Tracking System</h3>
+        <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">
+            Manage Manpower Requisitions, CV screening with Match % scores, shared interview calendars, and offer letter closures.
+        </p>
+    </div>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <a href="{{ url_for('export_requisitions_csv_route') }}" class="btn btn-outline" style="font-weight: 600;">📥 Export Requisitions CSV</a>
+        <a href="{{ url_for('cv_screener') }}" class="btn btn-secondary" style="font-weight: 600;">🔍 CV Screener</a>
+        <a href="{{ url_for('interviews_calendar') }}" class="btn btn-secondary" style="font-weight: 600;">📅 Shared Interview Calendar</a>
+        <a href="{{ url_for('create_requisition') }}" class="btn btn-primary" style="font-weight: 700;">➕ New Manpower Requisition</a>
+    </div>
+</div>
+
+<!-- Stat Row -->
+<div class="stat-row">
+    <div class="stat-card">
+        <div class="num">{{ requisitions|length }}</div>
+        <div class="lbl">Total Requisitions</div>
+    </div>
+    <div class="stat-card" style="border-left-color: #16a34a;">
+        <div class="num" style="color: #16a34a;">{{ requisitions|selectattr('status', 'equalto', 'Approved')|list|length }}</div>
+        <div class="lbl">Approved Openings</div>
+    </div>
+    <div class="stat-card" style="border-left-color: #d97706;">
+        <div class="num" style="color: #d97706;">{{ requisitions|selectattr('status', 'in', ['Pending Manager Approval', 'Pending Admin Approval'])|list|length }}</div>
+        <div class="lbl">Pending Approvals</div>
+    </div>
+    <div class="stat-card" style="border-left-color: #0284c7;">
+        <div class="num" style="color: #0284c7;">{{ candidates|length }}</div>
+        <div class="lbl">Screened Candidates</div>
+    </div>
+</div>
+
+<!-- Manpower Requisitions List -->
+<div class="card" style="margin-bottom: 25px;">
+    <h3 style="margin-top: 0;">📋 Manpower Requisitions</h3>
+    
+    {% if requisitions %}
+    <div class="table-scroll">
+        <table class="list">
+            <thead>
+                <tr>
+                    <th>Req ID</th><th>Job Title</th><th>Department</th><th>Positions</th><th>Target CTC</th><th>Exp</th><th>Key Skills</th><th>Requested By</th><th>Priority</th><th>Status</th><th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in requisitions %}
+                <tr>
+                    <td style="font-weight: 700; color: #2563eb;">REQ-{{ "%03d"|format(r.id) }}</td>
+                    <td style="font-weight: 700;">{{ r.title }}</td>
+                    <td>{{ r.department }}</td>
+                    <td style="font-weight: 700; text-align: center;">{{ r.number_of_positions }}</td>
+                    <td>{{ '%.1fL - %.1fL'|format(r.target_ctc_min, r.target_ctc_max) if r.target_ctc_max > 0 else 'Market Standard' }}</td>
+                    <td>{{ r.required_exp_years }} yrs</td>
+                    <td style="font-size: 12.5px; color: #475569; max-width: 180px;">{{ r.key_skills }}</td>
+                    <td>{{ r.requested_by.profile.full_name if r.requested_by and r.requested_by.profile else r.requested_by.employee_code if r.requested_by else '-' }}</td>
+                    <td>
+                        {% if r.priority == 'Urgent' %}
+                        <span class="badge" style="background: #fee2e2; color: #dc2626;">🔥 Urgent</span>
+                        {% elif r.priority == 'High' %}
+                        <span class="badge" style="background: #ffedd5; color: #c2410c;">High</span>
+                        {% else %}
+                        <span class="badge" style="background: #f1f5f9; color: #475569;">{{ r.priority }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if r.status == 'Approved' %}
+                        <span class="badge badge-complete">Approved</span>
+                        {% elif 'Pending' in r.status %}
+                        <span class="badge badge-pending">⏳ {{ r.status }}</span>
+                        {% else %}
+                        <span class="badge" style="background: #fee2e2; color: #b91c1c;">{{ r.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if 'Pending' in r.status and (current_user.role in ['admin', 'demo_admin'] or current_user.id == r.approval_level_1_manager_id) %}
+                        <form method="post" action="{{ url_for('approve_requisition_route', req_id=r.id) }}" style="display: inline-flex; gap: 4px;">
+                            <input type="hidden" name="action" value="approve">
+                            <button type="submit" class="btn btn-sm btn-primary" style="padding: 3px 8px; font-size: 11px; background: #16a34a; border-color: #16a34a;">Approve</button>
+                        </form>
+                        {% endif %}
+                        <a href="{{ url_for('cv_screener') }}" class="btn btn-sm btn-outline" style="padding: 3px 8px; font-size: 11px;">View Candidates</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="sq"></div>
+        No manpower requisitions created yet. Click "New Manpower Requisition" to post a position request.
+    </div>
+    {% endif %}
+</div>
+
+<!-- Candidate Recruitment Pipeline -->
+<div class="card">
+    <h3 style="margin-top: 0;">👥 Active Candidate Pipeline & Offer Closures</h3>
+    
+    {% if candidates %}
+    <div class="table-scroll">
+        <table class="list">
+            <thead>
+                <tr>
+                    <th>Candidate Name</th><th>Requisition</th><th>Experience</th><th>Key Skills</th><th>Match % Score</th><th>Status</th><th>Joining Date</th><th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in candidates %}
+                <tr>
+                    <td>
+                        <strong>{{ c.full_name }}</strong><br>
+                        <span style="font-size: 12px; color: #64748b;">{{ c.email }} | {{ c.phone or '-' }}</span>
+                    </td>
+                    <td style="font-weight: 600; color: #2563eb;">{{ c.requisition.title if c.requisition else '-' }}</td>
+                    <td>{{ c.total_exp_years }} yrs</td>
+                    <td style="font-size: 12px; color: #475569;">{{ c.key_skills or '-' }}</td>
+                    <td>
+                        <span class="badge" style="background: {{ '#dcfce7' if c.match_score_percent >= 75 else '#fef9c3' if c.match_score_percent >= 50 else '#fee2e2' }}; color: {{ '#15803d' if c.match_score_percent >= 75 else '#a16207' if c.match_score_percent >= 50 else '#b91c1c' }}; font-weight: 800; font-size: 12px;">
+                            🎯 {{ '%.1f'|format(c.match_score_percent) }}% Match
+                        </span>
+                    </td>
+                    <td>
+                        {% if c.status == 'Offered' %}
+                        <span class="badge" style="background: #dbeafe; color: #1e40af; font-weight: 700;">📜 Offered (CTC: ₹{{ '%.1f'|format(c.offered_ctc or 0) }}L)</span>
+                        {% elif c.status == 'Shortlisted' %}
+                        <span class="badge badge-complete">⭐ Shortlisted</span>
+                        {% elif c.status == 'Final Discussion' %}
+                        <span class="badge" style="background: #fef9c3; color: #a16207; font-weight: 700;">🤝 Final Discussion</span>
+                        {% elif c.status == 'Rejected' %}
+                        <span class="badge" style="background: #fee2e2; color: #b91c1c; font-weight: 700;">❌ Rejected (Not Shortlisted)</span>
+                        {% else %}
+                        <span class="badge badge-pending">{{ c.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if c.joining_date %}
+                        <strong style="color: #16a34a;">📅 {{ c.joining_date.strftime('%d-%b-%Y') }}</strong>
+                        {% else %}
+                        —
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                            {% if c.status == 'Offered' %}
+                            <a href="{{ url_for('view_offer_letter', candidate_id=c.id) }}" class="btn btn-sm btn-primary" style="padding: 4px 10px; font-weight: 700; background: #0284c7; border-color: #0284c7;">
+                                📄 View Offer
+                            </a>
+                            {% elif c.status in ['Shortlisted', 'Final Discussion'] and current_user.role in ['admin', 'demo_admin'] %}
+                            <a href="{{ url_for('candidate_offer_route', candidate_id=c.id) }}" class="btn btn-sm btn-primary" style="padding: 4px 10px; font-weight: 700; background: #16a34a; border-color: #16a34a;">
+                                📜 Issue Offer
+                            </a>
+                            {% elif c.status == 'Screened' %}
+                            <a href="{{ url_for('interviews_calendar') }}" class="btn btn-sm btn-outline" style="padding: 4px 10px; font-weight: 600;">
+                                📅 Schedule
+                            </a>
+                            {% endif %}
+
+                            {% if current_user.role in ['admin', 'demo_admin'] %}
+                            <form action="{{ url_for('delete_candidate_route', candidate_id=c.id) }}" method="post" onsubmit="return confirm('Delete candidate {{ c.full_name }} from recruitment pipeline?');" style="display: inline;">
+                                <button type="submit" class="btn btn-sm btn-danger" style="padding: 3px 8px; font-size: 11px; background: #dc2626; border-color: #dc2626;">
+                                    🗑️ Delete
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="sq"></div>
+        No candidates uploaded yet. Use the CV Screener to upload resumes and screen candidates.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

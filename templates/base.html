@@ -1,66 +1,362 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
-  <title>{% block title %}HRMS{% endblock %} — SaarthiEV Mobility</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
-  <div class="shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <span class="brand-logo-chip"><img src="{{ url_for('static', filename='img/logo.png') }}" alt="SaarthiEV Mobility"></span>
-        <span class="word">SaarthiEV<br>HRMS Portal</span>
-      </div>
-      <nav>
-        {% if current_user.role == 'admin' %}
-          <a href="{{ url_for('admin_dashboard') }}" class="{{ 'active' if request.endpoint == 'admin_dashboard' }}">Overview</a>
-          <a href="{{ url_for('admin_employee_list') }}" class="{{ 'active' if request.endpoint in ['admin_employee_list','admin_view_employee'] }}">All people</a>
-          <a href="{{ url_for('admin_create_employee') }}" class="{{ 'active' if request.endpoint == 'admin_create_employee' }}">Add employee</a>
-          <a href="{{ url_for('admin_manager_list') }}" class="{{ 'active' if request.endpoint == 'admin_manager_list' }}">Managers</a>
-          <a href="{{ url_for('admin_leave_types') }}" class="{{ 'active' if request.endpoint == 'admin_leave_types' }}">Leave types</a>
-          <a href="{{ url_for('admin_leave_requests') }}" class="{{ 'active' if request.endpoint == 'admin_leave_requests' }}">Leave requests</a>
-        {% elif current_user.role == 'manager' %}
-          <a href="{{ url_for('manager_dashboard') }}" class="{{ 'active' if request.endpoint == 'manager_dashboard' }}">Overview</a>
-          <a href="{{ url_for('manager_team_list') }}" class="{{ 'active' if request.endpoint in ['manager_team_list','manager_view_employee'] }}">My team</a>
-          <a href="{{ url_for('manager_leave_requests') }}" class="{{ 'active' if request.endpoint == 'manager_leave_requests' }}">Team leave requests</a>
-          <a href="{{ url_for('employee_view_own_profile') }}" class="{{ 'active' if request.endpoint in ['employee_view_own_profile','employee_edit_profile'] }}">My profile</a>
-          <a href="{{ url_for('my_leaves') }}" class="{{ 'active' if request.endpoint in ['my_leaves','apply_leave'] }}">My leaves</a>
-        {% else %}
-          <a href="{{ url_for('employee_dashboard') }}" class="{{ 'active' if request.endpoint == 'employee_dashboard' }}">Overview</a>
-          <a href="{{ url_for('employee_view_own_profile') }}" class="{{ 'active' if request.endpoint in ['employee_view_own_profile','employee_edit_profile'] }}">My profile</a>
-          <a href="{{ url_for('my_leaves') }}" class="{{ 'active' if request.endpoint in ['my_leaves','apply_leave'] }}">My leaves</a>
-        {% endif %}
-      </nav>
-      <div class="who">
-        <div class="name">{{ current_user.profile.full_name if current_user.profile else current_user.employee_code }}</div>
-        <div class="role">{{ current_user.role }} · {{ current_user.employee_code }}</div>
-        <form action="{{ url_for('logout') }}" method="get">
-          <button type="submit">Log out</button>
-        </form>
-      </div>
-    </aside>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%232563EB'/><rect x='8' y='8' width='16' height='16' rx='4' fill='%23FFFFFF'/><rect x='12' y='12' width='8' height='8' rx='2' fill='%232563EB'/></svg>" />
+    <link rel="alternate icon" href="{{ url_for('static', filename='img/favicon.ico') }}" />
+    <title>{% block title %}HRMS{% endblock %} — Sanvit HR</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-blue-dot"></span>
+          <span class="word">Sanvit HR</span>
+        </div>
+        <nav>
+          {% if current_user.role in ['admin', 'demo_admin'] %}
+          <a
+            href="{{ url_for('admin_dashboard') }}"
+            class="{{ 'active' if request.endpoint == 'admin_dashboard' }}"
+          >
+            📊 Overview
+          </a>
 
-    <div class="main">
-      <div class="topbar">
-        <h2 style="margin:0;">{% block page_title %}{% endblock %}</h2>
-        <div></div>
-      </div>
-      <div class="content">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            {% for category, message in messages %}
-              <div class="flash flash-{{ category }}">{{ message }}</div>
-            {% endfor %}
+          <!-- 1. Employee Data Group -->
+          <div class="nav-group {{ 'open' if request.endpoint in ['admin_employee_list','admin_create_employee','admin_manager_list','admin_view_employee','admin_edit_employee'] }}">
+            <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)">
+              <span>👥 Employee Data</span>
+              <span class="chevron">▼</span>
+            </button>
+            <div class="nav-group-body">
+              <a href="{{ url_for('admin_employee_list') }}" class="{{ 'active' if request.endpoint in ['admin_employee_list','admin_view_employee','admin_edit_employee'] }}">Master Employee List</a>
+              <a href="{{ url_for('admin_create_employee') }}" class="{{ 'active' if request.endpoint == 'admin_create_employee' }}">Add Employee</a>
+              <a href="{{ url_for('admin_manager_list') }}" class="{{ 'active' if request.endpoint == 'admin_manager_list' }}">Managers Directory</a>
+              <a href="{{ url_for('export_employee_report') }}">📥 Export Employee CSV</a>
+            </div>
+          </div>
+
+          <!-- 2. Attendance Group -->
+          <div class="nav-group {{ 'open' if request.endpoint in ['admin_attendance','admin_bulk_attendance'] }}">
+            <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)">
+              <span>⏱️ Attendance</span>
+              <span class="chevron">▼</span>
+            </button>
+            <div class="nav-group-body">
+              <a href="{{ url_for('admin_attendance') }}" class="{{ 'active' if request.endpoint == 'admin_attendance' }}">Daily Attendance</a>
+              <a href="{{ url_for('admin_bulk_attendance') }}" class="{{ 'active' if request.endpoint == 'admin_bulk_attendance' }}">Full-Month Bulk Attendance</a>
+              <a href="{{ url_for('export_attendance_report') }}">📥 Export Attendance CSV</a>
+            </div>
+          </div>
+
+          <!-- 3. Leaves & Approvals Group -->
+          <div class="nav-group {{ 'open' if request.endpoint in ['admin_leave_requests','admin_special_approvals','admin_leave_types'] }}">
+            <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)">
+              <span>🌴 Leaves & Approvals</span>
+              <span class="chevron">▼</span>
+            </button>
+            <div class="nav-group-body">
+              <a href="{{ url_for('admin_leave_requests') }}" class="{{ 'active' if request.endpoint == 'admin_leave_requests' }}">Leave Requests</a>
+              <a href="{{ url_for('admin_special_approvals') }}" class="{{ 'active' if request.endpoint == 'admin_special_approvals' }}">Special Approvals</a>
+              <a href="{{ url_for('admin_leave_types') }}" class="{{ 'active' if request.endpoint == 'admin_leave_types' }}">Leave Types & Balances</a>
+            </div>
+          </div>
+
+          <!-- 4. Payroll Group -->
+          <div class="nav-group {{ 'open' if request.endpoint in ['payroll_dashboard','pay_components','employee_ctc','generate_payroll','admin_payslip_list'] }}">
+            <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)">
+              <span>💰 Payroll</span>
+              <span class="chevron">▼</span>
+            </button>
+            <div class="nav-group-body">
+              <a href="{{ url_for('payroll_dashboard') }}" class="{{ 'active' if request.endpoint == 'payroll_dashboard' }}">Payroll Dashboard</a>
+              <a href="{{ url_for('generate_payroll') }}" class="{{ 'active' if request.endpoint == 'generate_payroll' }}">Generate Payroll & Payslips</a>
+              <a href="{{ url_for('pay_components') }}" class="{{ 'active' if request.endpoint == 'pay_components' }}">Salary Components</a>
+              <a href="{{ url_for('employee_ctc') }}" class="{{ 'active' if request.endpoint == 'employee_ctc' }}">Employee CTC Setup</a>
+              <a href="{{ url_for('export_payroll_report') }}">📥 Export Payroll CSV</a>
+            </div>
+          </div>
+
+          <!-- 5. Appraisals Group -->
+          <div class="nav-group {{ 'open' if request.endpoint in ['admin_appraisals','view_edit_appraisal'] }}">
+            <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)">
+              <span>📈 Appraisals</span>
+              <span class="chevron">▼</span>
+            </button>
+            <div class="nav-group-body">
+              <a href="{{ url_for('admin_appraisals') }}" class="{{ 'active' if request.endpoint == 'admin_appraisals' }}">Appraisal Dashboard</a>
+              <a href="{{ url_for('export_appraisal_report') }}">📥 Export Appraisals CSV</a>
+            </div>
+          </div>
+
+          <!-- 6. Recruitment & ATS Group -->
+          <div class="nav-group {{ 'open' if request.endpoint in ['recruitment_dashboard','create_requisition','cv_screener','interviews_calendar','candidate_offer_route'] }}">
+            <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)">
+              <span>🤝 Recruitment & ATS</span>
+              <span class="chevron">▼</span>
+            </button>
+            <div class="nav-group-body">
+              <a href="{{ url_for('recruitment_dashboard') }}" class="{{ 'active' if request.endpoint == 'recruitment_dashboard' }}">Recruitment Dashboard</a>
+              <a href="{{ url_for('create_requisition') }}" class="{{ 'active' if request.endpoint == 'create_requisition' }}">New Manpower Requisition</a>
+              <a href="{{ url_for('cv_screener') }}" class="{{ 'active' if request.endpoint == 'cv_screener' }}">🔍 CV Screener & Matcher</a>
+              <a href="{{ url_for('interviews_calendar') }}" class="{{ 'active' if request.endpoint == 'interviews_calendar' }}">📅 Shared Interview Calendar</a>
+              <a href="{{ url_for('export_requisitions_csv_route') }}">📥 Export Requisitions CSV</a>
+            </div>
+          </div>
+
+          <!-- 7. Master Reports Link -->
+          <a
+            href="{{ url_for('admin_reports_dashboard') }}"
+            class="{{ 'active' if request.endpoint == 'admin_reports_dashboard' }}"
+          >
+            📊 Master Reports & Exports
+          </a>
+
+          <a href="{{ url_for('admin_analytics_dashboard') }}" class="{{ 'active' if request.endpoint == 'admin_analytics_dashboard' }}">📈 Analytics Dashboard</a>
+
+          <a href="{{ url_for('admin_demo_leads') }}" class="{{ 'active' if request.endpoint == 'admin_demo_leads' }}">📅 Sales Demo Leads</a>
+
+          <a href="{{ url_for('community') }}" class="{{ 'active' if request.endpoint == 'community' }}">✨ People & Culture</a>
+          <div class="nav-group {{ 'open' if request.endpoint == 'hr_resources' }}">
+            <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)">
+              <span>📚 HR Resources</span><span class="chevron">▼</span>
+            </button>
+            <div class="nav-group-body">
+              <a href="{{ url_for('hr_resources', tab='letters') }}">Letters & Documents</a>
+              <a href="{{ url_for('hr_resources', tab='resources') }}">Handbook & Policies</a>
+              <a href="{{ url_for('hr_resources', tab='calculators') }}">Calculators</a>
+              <a href="{{ url_for('hr_resources', tab='memories') }}">HR Memories</a>
+            </div>
+          </div>
+
+
+          {% elif current_user.role == 'manager' %}
+          <a
+            href="{{ url_for('manager_dashboard') }}"
+            class="{{ 'active' if request.endpoint == 'manager_dashboard' }}"
+          >
+            📊 Overview
+          </a>
+
+          <!-- Manager: Team Data Group -->
+          <div class="nav-group {{ 'open' if request.endpoint in ['manager_team_list','manager_view_employee'] }}">
+            <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)">
+              <span>👥 My Team Data</span>
+              <span class="chevron">▼</span>
+            </button>
+            <div class="nav-group-body">
+              <a href="{{ url_for('manager_team_list') }}" class="{{ 'active' if request.endpoint in ['manager_team_list','manager_view_employee'] }}">Team Members Master</a>
+              <a href="{{ url_for('export_employee_report') }}">📥 Export Employee CSV</a>
+            </div>
+          </div>
+
+          <!-- Manager: Team Attendance Group -->
+          <div class="nav-group {{ 'open' if request.endpoint in ['manager_attendance','manager_bulk_attendance','manager_regularization_list'] }}">
+            <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)">
+              <span>⏱️ Team Attendance</span>
+              <span class="chevron">▼</span>
+            </button>
+            <div class="nav-group-body">
+              <a href="{{ url_for('manager_attendance') }}" class="{{ 'active' if request.endpoint == 'manager_attendance' }}">Team Daily Attendance</a>
+              <a href="{{ url_for('manager_bulk_attendance') }}" class="{{ 'active' if request.endpoint == 'manager_bulk_attendance' }}">Team Full-Month Marking</a>
+              <a href="{{ url_for('manager_regularization_list') }}" class="{{ 'active' if request.endpoint == 'manager_regularization_list' }}">Attendance Regularizations</a>
+              <a href="{{ url_for('export_attendance_report') }}">📥 Export Attendance CSV</a>
+            </div>
+          </div>
+
+          <!-- Manager: Team Leaves & Approvals -->
+          <div class="nav-group {{ 'open' if request.endpoint in ['manager_leave_requests','manager_special_approvals'] }}">
+            <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)">
+              <span>🌴 Team Leaves & Approvals</span>
+              <span class="chevron">▼</span>
+            </button>
+            <div class="nav-group-body">
+              <a href="{{ url_for('manager_leave_requests') }}" class="{{ 'active' if request.endpoint == 'manager_leave_requests' }}">Team Leave Requests</a>
+              <a href="{{ url_for('manager_special_approvals') }}" class="{{ 'active' if request.endpoint == 'manager_special_approvals' }}">Team Special Approvals</a>
+            </div>
+          </div>
+
+          <!-- Manager: Team Appraisals -->
+          <div class="nav-group {{ 'open' if request.endpoint in ['manager_appraisals','view_edit_appraisal'] }}">
+            <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)">
+              <span>📈 Team Appraisals</span>
+              <span class="chevron">▼</span>
+            </button>
+            <div class="nav-group-body">
+              <a href="{{ url_for('manager_appraisals') }}" class="{{ 'active' if request.endpoint == 'manager_appraisals' }}">Team Performance Appraisals</a>
+              <a href="{{ url_for('export_appraisal_report') }}">📥 Export Appraisals CSV</a>
+            </div>
+          </div>
+
+          <!-- Manager: Recruitment & ATS -->
+          <div class="nav-group {{ 'open' if request.endpoint in ['recruitment_dashboard','create_requisition','interviews_calendar'] }}">
+            <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)">
+              <span>🤝 Recruitment & ATS</span>
+              <span class="chevron">▼</span>
+            </button>
+            <div class="nav-group-body">
+              <a href="{{ url_for('recruitment_dashboard') }}" class="{{ 'active' if request.endpoint == 'recruitment_dashboard' }}">Recruitment Dashboard</a>
+              <a href="{{ url_for('create_requisition') }}" class="{{ 'active' if request.endpoint == 'create_requisition' }}">New Manpower Requisition</a>
+              <a href="{{ url_for('interviews_calendar') }}" class="{{ 'active' if request.endpoint == 'interviews_calendar' }}">📅 Shared Interview Calendar</a>
+              <a href="{{ url_for('export_requisitions_csv_route') }}">📥 Export Requisitions CSV</a>
+            </div>
+          </div>
+
+          <!-- Manager: Self Services Group -->
+          <div class="nav-group {{ 'open' if request.endpoint in ['employee_view_own_profile','attendance_index','employee_bulk_attendance','my_leaves','special_approvals_index','employee_payslips','appraisals_index'] }}">
+            <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)">
+              <span>👤 My Self Services</span>
+              <span class="chevron">▼</span>
+            </button>
+            <div class="nav-group-body">
+              <a href="{{ url_for('employee_view_own_profile') }}" class="{{ 'active' if request.endpoint in ['employee_view_own_profile','employee_edit_profile'] }}">My Profile</a>
+              <a href="{{ url_for('attendance_index') }}" class="{{ 'active' if request.endpoint == 'attendance_index' }}">My Attendance</a>
+              <a href="{{ url_for('employee_bulk_attendance') }}" class="{{ 'active' if request.endpoint == 'employee_bulk_attendance' }}">My Bulk Marking</a>
+              <a href="{{ url_for('my_leaves') }}" class="{{ 'active' if request.endpoint == 'my_leaves' }}">My Leaves</a>
+              <a href="{{ url_for('special_approvals_index') }}" class="{{ 'active' if request.endpoint == 'special_approvals_index' }}">Special Approvals</a>
+              <a href="{{ url_for('employee_payslips') }}" class="{{ 'active' if request.endpoint == 'employee_payslips' }}">My Payslips</a>
+              <a href="{{ url_for('appraisals_index') }}" class="{{ 'active' if request.endpoint == 'appraisals_index' }}">My Appraisals</a>
+            </div>
+          </div>
+
+          <a
+            href="{{ url_for('admin_reports_dashboard') }}"
+            class="{{ 'active' if request.endpoint == 'admin_reports_dashboard' }}"
+          >
+            📊 Master Reports & Exports
+          </a>
+
+          <a href="{{ url_for('admin_analytics_dashboard') }}" class="{{ 'active' if request.endpoint == 'admin_analytics_dashboard' }}">📈 Analytics Dashboard</a>
+
+          <a href="{{ url_for('community') }}" class="{{ 'active' if request.endpoint == 'community' }}">✨ People & Culture</a>
+          <div class="nav-group {{ 'open' if request.endpoint == 'hr_resources' }}">
+            <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)">
+              <span>📚 HR Resources</span><span class="chevron">▼</span>
+            </button>
+            <div class="nav-group-body">
+              <a href="{{ url_for('hr_resources', tab='letters') }}">Letters & Documents</a>
+              <a href="{{ url_for('hr_resources', tab='resources') }}">Handbook & Policies</a>
+              <a href="{{ url_for('hr_resources', tab='calculators') }}">Calculators</a>
+              <a href="{{ url_for('hr_resources', tab='memories') }}">HR Memories</a>
+            </div>
+          </div>
+
+
+          {% else %}
+          <!-- EMPLOYEE SIDEBAR -->
+          <a
+            href="{{ url_for('employee_dashboard') }}"
+            class="{{ 'active' if request.endpoint == 'employee_dashboard' }}"
+          >
+            📊 Overview
+          </a>
+
+          <a
+            href="{{ url_for('employee_view_own_profile') }}"
+            class="{{ 'active' if request.endpoint in ['employee_view_own_profile','employee_edit_profile'] }}"
+          >
+            👤 My Profile
+          </a>
+
+          <!-- Employee: Attendance Group -->
+          <div class="nav-group {{ 'open' if request.endpoint in ['attendance_index','employee_bulk_attendance'] }}">
+            <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)">
+              <span>⏱️ Attendance</span>
+              <span class="chevron">▼</span>
+            </button>
+            <div class="nav-group-body">
+              <a href="{{ url_for('attendance_index') }}" class="{{ 'active' if request.endpoint == 'attendance_index' }}">Daily Attendance Matrix</a>
+              <a href="{{ url_for('employee_bulk_attendance') }}" class="{{ 'active' if request.endpoint == 'employee_bulk_attendance' }}">Full-Month Marking</a>
+            </div>
+          </div>
+
+          <!-- Employee: Leaves & Approvals Group -->
+          <div class="nav-group {{ 'open' if request.endpoint in ['my_leaves','apply_leave','special_approvals_index'] }}">
+            <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)">
+              <span>🌴 Leaves & Approvals</span>
+              <span class="chevron">▼</span>
+            </button>
+            <div class="nav-group-body">
+              <a href="{{ url_for('my_leaves') }}" class="{{ 'active' if request.endpoint == 'my_leaves' }}">My Leave Requests</a>
+              <a href="{{ url_for('special_approvals_index') }}" class="{{ 'active' if request.endpoint == 'special_approvals_index' }}">Special Approvals</a>
+            </div>
+          </div>
+
+          <a
+            href="{{ url_for('employee_payslips') }}"
+            class="{{ 'active' if request.endpoint == 'employee_payslips' }}"
+          >
+            💰 My Payslips
+          </a>
+
+          <a
+            href="{{ url_for('appraisals_index') }}"
+            class="{{ 'active' if request.endpoint == 'appraisals_index' }}"
+          >
+            📈 My Performance Appraisals
+          </a>
+
+          <a href="{{ url_for('community') }}" class="{{ 'active' if request.endpoint == 'community' }}">✨ People & Culture</a>
+          <div class="nav-group {{ 'open' if request.endpoint == 'hr_resources' }}">
+            <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)">
+              <span>📚 HR Resources</span><span class="chevron">▼</span>
+            </button>
+            <div class="nav-group-body">
+              <a href="{{ url_for('hr_resources', tab='letters') }}">Letters & Documents</a>
+              <a href="{{ url_for('hr_resources', tab='resources') }}">Handbook & Policies</a>
+              <a href="{{ url_for('hr_resources', tab='calculators') }}">Calculators</a>
+              <a href="{{ url_for('hr_resources', tab='memories') }}">HR Memories</a>
+            </div>
+          </div>
+
           {% endif %}
-        {% endwith %}
-        {% block content %}{% endblock %}
+        </nav>
+        <div class="who">
+          <div class="name">
+            {{ current_user.profile.full_name if current_user.profile else
+            current_user.employee_code }}
+          </div>
+          <div class="role">
+            {{ current_user.role }} · {{ current_user.employee_code }}
+          </div>
+          <form action="{{ url_for('logout') }}" method="get">
+            <button type="submit">Log out</button>
+          </form>
+        </div>
+      </aside>
+
+      <div class="main">
+        <div class="topbar">
+          <h2 style="margin: 0">{% block page_title %}{% endblock %}</h2>
+          <div class="topbar-aside"><span class="topbar-avatar">✦</span><span>People first, always</span></div>
+        </div>
+        <div class="content">
+          {% with messages = get_flashed_messages(with_categories=true) %} {% if
+          messages %} {% for category, message in messages %}
+          <div class="flash flash-{{ category }}">{{ message }}</div>
+          {% endfor %} {% endif %} {% endwith %} {% block content %}{% endblock
+          %}
+        </div>
       </div>
     </div>
-  </div>
-</body>
+
+    <script>
+      function toggleNavGroup(btn) {
+        const group = btn.closest('.nav-group');
+        if (group) {
+          group.classList.toggle('open');
+        }
+      }
+    </script>
+  </body>
 </html>

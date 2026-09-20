@@ -1,0 +1,44 @@
+{% extends "base.html" %} {% block title %}Payroll{% endblock %} {% block
+page_title %}Payroll Dashboard{% endblock %} {% block content %}
+
+<div class="stat-row">
+  <div class="stat-card">
+    <div class="num">{{ total_components }}</div>
+    <div class="lbl">Salary Components</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="num">{{ total_ctc }}</div>
+    <div class="lbl">Employee CTC</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="num">{{ total_payslips }}</div>
+    <div class="lbl">Payslips Generated</div>
+  </div>
+</div>
+
+<div class="card">
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 15px;">
+    <h3 style="margin: 0;">Payroll Management</h3>
+    <a href="{{ url_for('export_payroll_report') }}" class="btn btn-outline" style="font-weight: 600;">📥 Export Payroll Report (CSV)</a>
+  </div>
+
+  <p class="card-sub">
+    Configure salary structure, employee CTC and generate monthly payroll.
+  </p>
+
+  <br />
+
+  <a href="{{ url_for('pay_components') }}" class="btn btn-primary">
+    Salary Components
+  </a>
+</div>
+
+<a href="{{ url_for('employee_ctc') }}" class="btn btn-primary">
+  Employee CTC
+</a>
+<a href="{{ url_for('generate_payroll') }}" class="btn btn-primary">
+  Generate Payroll
+</a>
+{% endblock %}
