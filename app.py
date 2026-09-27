@@ -538,8 +538,9 @@ def create_default_letter_templates():
     db.session.commit()
 
 
-def migrate_payslip_tenant_id(engine):
+def migrate_payslip_schema(engine):
     from sqlalchemy import inspect, text
+    from models import Payslip
 
     inspector = inspect(engine)
     tables = set(inspector.get_table_names())
@@ -547,13 +548,45 @@ def migrate_payslip_tenant_id(engine):
         return
 
     payslip_columns = {column["name"] for column in inspector.get_columns("payslip")}
+    if "id" not in payslip_columns:
+        raise RuntimeError("Cannot safely migrate payslip table without its primary key column id.")
     user_columns = (
         {column["name"] for column in inspector.get_columns("user")}
         if "user" in tables else set()
     )
+
+    model_columns = [column for column in Payslip.__table__.columns if column.name != "id"]
+    missing_columns = [column for column in model_columns if column.name not in payslip_columns]
+    unsafe_missing_columns = [
+        column.name
+        for column in missing_columns
+        if not column.nullable and column.default is None
+    ]
+    if unsafe_missing_columns:
+        raise RuntimeError(
+            "Cannot safely migrate missing required payslip columns without source values: "
+            + ", ".join(unsafe_missing_columns)
+        )
+
     with engine.begin() as connection:
-        if "tenant_id" not in payslip_columns:
-            connection.execute(text("ALTER TABLE payslip ADD COLUMN tenant_id INTEGER NULL"))
+        preparer = engine.dialect.identifier_preparer
+        quoted_table = preparer.quote("payslip")
+        for column in missing_columns:
+            quoted_column = preparer.quote(column.name)
+            definition = column.type.compile(dialect=engine.dialect)
+            definition += " NULL" if column.nullable else " NOT NULL"
+            default = column.default.arg if column.default is not None else None
+            if isinstance(default, bool):
+                definition += " DEFAULT " + ("TRUE" if default else "FALSE")
+            elif isinstance(default, (int, float)):
+                definition += f" DEFAULT {default}"
+            elif isinstance(default, str):
+                escaped_default = default.replace("'", "''")
+                definition += f" DEFAULT '{escaped_default}'"
+
+            connection.execute(text(
+                f"ALTER TABLE {quoted_table} ADD COLUMN {quoted_column} {definition}"
+            ))
 
         if "tenant_id" in user_columns:
             connection.execute(text(
@@ -597,7 +630,7 @@ def run_lightweight_migrations():
         SpecialApproval,
     )
 
-    migrate_payslip_tenant_id(db.engine)
+    migrate_payslip_schema(db.engine)
     inspector = inspect(db.engine)
     tables = inspector.get_table_names()
 
@@ -720,31 +753,6 @@ def run_lightweight_migrations():
                 conn.execute(text("ALTER TABLE attendance ADD COLUMN ot_hours FLOAT DEFAULT 0.0"))
             if "is_off_day" not in existing_att:
                 conn.execute(text("ALTER TABLE attendance ADD COLUMN is_off_day BOOLEAN DEFAULT 0"))
-            conn.commit()
-
-    if "payslip" in tables:
-        existing_ps = [c["name"] for c in inspector.get_columns("payslip")]
-        with db.engine.connect() as conn:
-            for col, col_type in [
-                ("arrears", "FLOAT DEFAULT 0.0"),
-                ("loss_of_pay", "FLOAT DEFAULT 0.0"),
-                ("ot_hours", "FLOAT DEFAULT 0.0"),
-                ("ot_amount", "FLOAT DEFAULT 0.0"),
-                ("incentive", "FLOAT DEFAULT 0.0"),
-                ("pf_deduction", "FLOAT DEFAULT 0.0"),
-                ("gratuity_provision", "FLOAT DEFAULT 0.0"),
-            ]:
-                if col not in existing_ps:
-                    conn.execute(text(f"ALTER TABLE payslip ADD COLUMN {col} {col_type}"))
-            for col, col_type in [
-                ("esi_deduction", "FLOAT DEFAULT 0.0"),
-                ("professional_tax", "FLOAT DEFAULT 0.0"),
-                ("tds_deduction", "FLOAT DEFAULT 0.0"),
-                ("statutory_note", "VARCHAR(300)"),
-                ("tax_regime", "VARCHAR(20) DEFAULT 'new_regime'"),
-            ]:
-                if col not in existing_ps:
-                    conn.execute(text(f"ALTER TABLE payslip ADD COLUMN {col} {col_type}"))
             conn.commit()
 
     if "pay_component" in tables:
