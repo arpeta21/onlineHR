@@ -17,3 +17,4 @@ pytest
 # Rate-limit storage backend — required for Redis-backed flask-limiter in production
 redis==5.2.1
 limits[redis]==3.14.0
+psycopg[binary]
