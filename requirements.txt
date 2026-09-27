@@ -1,11 +1,19 @@
 Flask==3.1.3
 Flask-SQLAlchemy==3.1.1
 Flask-Login==0.6.3
+Flask-WTF==1.2.2
+Flask-Limiter==3.12
+Flask-Migrate==4.1.0
 Werkzeug==3.1.7
 gunicorn==23.0.0
 psycopg2-binary==2.9.13
+cryptography==45.0.3
+reportlab==4.2.5
 openpyxl
 pandas
 pypdf
 python-docx
 pytest
+# Rate-limit storage backend — required for Redis-backed flask-limiter in production
+redis==5.2.1
+limits[redis]==3.14.0

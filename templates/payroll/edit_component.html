@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Salary Component{% endblock %}
+{% block page_title %}Edit Salary Component{% endblock %}
+
+{% block content %}
+{% include "partials/back_to_payroll.html" %}
+
+<div class="card">
+
+    <h3>Edit Salary Component</h3>
+
+    <p class="card-sub">
+        Update the payroll component configuration.
+    </p>
+
+    <form method="POST">
+
+        <label>Component Name</label>
+        <input type="text"
+               name="name"
+               class="form-control"
+               value="{{ component.name }}"
+               required>
+
+        <br>
+
+        <label>Component Type</label>
+
+        <select name="component_type" class="form-control">
+            <option value="earning" {% if component.component_type == 'earning' %}selected{% endif %}>Earning</option>
+            <option value="deduction" {% if component.component_type == 'deduction' %}selected{% endif %}>Deduction</option>
+        </select>
+
+        <br>
+
+        <label>Tax Regime</label>
+
+        <select name="tax_regime" class="form-control">
+            <option value="general" {% if (component.tax_regime or 'general') == 'general' %}selected{% endif %}>General</option>
+            <option value="old_regime" {% if (component.tax_regime or 'general') == 'old_regime' %}selected{% endif %}>Old Regime</option>
+            <option value="new_regime" {% if (component.tax_regime or 'general') == 'new_regime' %}selected{% endif %}>New Regime</option>
+        </select>
+
+        <br>
+
+        <label>Calculation Basis</label>
+
+        <select name="calc_basis" class="form-control">
+
+            <option value="flat" {% if component.calc_basis == 'flat' %}selected{% endif %}>Flat Amount</option>
+
+            <option value="percent_ctc" {% if component.calc_basis == 'percent_ctc' or component.calc_basis == 'percent_of_ctc' %}selected{% endif %}>Percentage of CTC</option>
+
+            <option value="percent_basic" {% if component.calc_basis == 'percent_basic' or component.calc_basis == 'percent_of_basic' %}selected{% endif %}>Percentage of Basic</option>
+
+            <option value="percent_gross" {% if component.calc_basis == 'percent_gross' or component.calc_basis == 'percent_of_gross' %}selected{% endif %}>Percentage of Gross</option>
+
+            <option value="residual" {% if component.calc_basis == 'residual' %}selected{% endif %}>Residual of CTC</option>
+
+            <option value="statutory" {% if component.calc_basis == 'statutory' %}selected{% endif %}>Statutory Law</option>
+
+        </select>
+
+        <br>
+
+        <label>Statutory Code (optional)</label>
+        <select name="statutory_code" class="form-control">
+            <option value="" {% if not component.statutory_code %}selected{% endif %}>Custom component</option>
+            {% for code, label in [('basic', 'Basic'), ('hra', 'HRA'), ('special_allowance', 'Special Allowance'), ('pf', 'PF'), ('vpf', 'VPF'), ('esic', 'ESIC'), ('professional_tax', 'Professional Tax'), ('tds', 'TDS'), ('superannuation', 'Superannuation')] %}
+            <option value="{{ code }}" {% if component.statutory_code == code %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+
+        <br>
+
+        <label>Calculation Value</label>
+
+        <input
+            type="number"
+            step="0.01"
+            name="calc_value"
+            class="form-control"
+            value="{{ component.calc_value }}"
+            required>
+
+        <br>
+
+        <label>Calculation Order</label>
+
+        <input
+            type="number"
+            name="calc_order"
+            value="{{ component.calc_order }}"
+            class="form-control">
+
+        <br>
+
+        <label>
+            <input type="checkbox" name="is_basic" {% if component.is_basic %}checked{% endif %}>
+            This is Basic Salary
+        </label>
+
+        <br><br>
+
+        <label>
+            <input type="checkbox" name="is_active" {% if component.is_active %}checked{% endif %}>
+            Active
+        </label>
+
+        <br><br>
+
+        <button class="btn btn-primary">
+            Save Changes
+        </button>
+
+        <a href="{{ url_for('pay_components') }}"
+           class="btn btn-outline">
+            Cancel
+        </a>
+
+    </form>
+
+</div>
+
+{% endblock %}

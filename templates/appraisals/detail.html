@@ -15,15 +15,15 @@
         </div>
         <div>
             {% if appraisal.status == 'Completed' %}
-            <span style="background: #dcfce7; color: #15803d; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 13.5px;">✅ Completed</span>
+            <span style="background: #dcfce7; color: #15803d; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 13.5px;">Completed</span>
             {% elif appraisal.status == 'Self Review Submitted' %}
             <span style="background: #e0f2fe; color: #0369a1; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 13.5px;">📩 Self Review Submitted</span>
             {% elif appraisal.status == 'KRA Approved (Eligible for Rating)' %}
-            <span style="background: #dcfce7; color: #166534; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 13.5px;">⭐ KRAs Approved — Rating Open</span>
+            <span style="background: #dcfce7; color: #166534; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 13.5px;">KRAs Approved — Rating Open</span>
             {% elif appraisal.status == 'KRA Submitted for Approval' %}
             <span style="background: #fef9c3; color: #a16207; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 13.5px;">⏳ KRA Submitted for Approval</span>
             {% elif appraisal.status in ['KRA Sent Back for Edit', 'Rating Sent Back for Edit'] %}
-            <span style="background: #fee2e2; color: #b91c1c; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 13.5px;">⚠️ Sent Back for Edit</span>
+            <span style="background: #fee2e2; color: #b91c1c; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 13.5px;">Sent Back for Edit</span>
             {% else %}
             <span style="background: #f1f5f9; color: #475569; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 13.5px;">📝 Stage 1: KRA Setting</span>
             {% endif %}
@@ -32,7 +32,7 @@
 
     {% if appraisal.sendback_note %}
     <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
-        <h4 style="margin: 0 0 5px 0; color: #991b1b;">⚠️ Manager Feedback for Revision:</h4>
+                <h4 style="margin: 0 0 5px 0; color: #991b1b;">Manager Feedback for Revision:</h4>
         <p style="margin: 0; color: #b91c1c; font-size: 14px;">{{ appraisal.sendback_note }}</p>
     </div>
     {% endif %}
@@ -42,13 +42,13 @@
         <div>
             <span style="font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase;">Overall Self Rating:</span>
             <div style="font-size: 18px; font-weight: 800; color: #0f172a;">
-                {{ '⭐ %.1f / 5.0'|format(appraisal.self_rating) if appraisal.self_rating else 'Not Rated Yet' }}
+                {{ '%.1f / 5.0'|format(appraisal.self_rating) if appraisal.self_rating else 'Not Rated Yet' }}
             </div>
         </div>
         <div>
             <span style="font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase;">Manager Rating:</span>
             <div style="font-size: 18px; font-weight: 800; color: #166534;">
-                {{ '⭐ %.1f / 5.0'|format(appraisal.rating) if appraisal.rating else 'Pending Review' }}
+                {{ '%.1f / 5.0'|format(appraisal.rating) if appraisal.rating else 'Pending Review' }}
             </div>
         </div>
         <div>
@@ -128,7 +128,7 @@
                 <input type="hidden" name="action" value="decide_kras">
                 <input type="hidden" name="decision" value="approve">
                 <button type="submit" class="btn btn-primary" style="background: #16a34a; border-color: #16a34a; font-weight: 700; padding: 10px 24px;">
-                    ✅ Approve KRAs & Unlock Rating Phase
+                    Approve KRAs & Unlock Rating Phase
                 </button>
             </form>
 
@@ -150,7 +150,7 @@
         <input type="hidden" name="action" value="submit_ratings">
 
         <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 14px 18px; border-radius: 8px; margin-bottom: 20px;">
-            <h4 style="margin: 0 0 4px 0; color: #166534;">⭐ Stage 2: Provide Self-Ratings per KRA & KPI Section</h4>
+            <h4 style="margin: 0 0 4px 0; color: #166534;">Stage 2: Provide Self-Ratings per KRA & KPI Section</h4>
             <p style="margin: 0; font-size: 13.5px; color: #14532d;">
                 Your KRAs have been approved by your Manager! Rate your performance (1.0 to 5.0) for each KRA section and KPI below, and submit to your Manager.
             </p>
@@ -215,9 +215,10 @@
 
 
     <!-- STAGE 2 MANAGER ACTION: MANAGER EVALUATION & RATINGS -->
-    {% elif is_evaluator and appraisal.status == 'Self Review Submitted' %}
+    {% elif is_evaluator and appraisal.status in ['Self Review Submitted', 'Completed'] %}
     <div style="background: #f8fafc; border: 2px solid #2563eb; border-radius: 10px; padding: 20px; margin-bottom: 25px;">
-        <h3 style="margin-top: 0; color: #1e3a8a;">👔 Manager Rating Evaluation & Final Approval</h3>
+        <h3 style="margin-top: 0; color: #1e3a8a;">Manager Rating Evaluation{% if appraisal.status == 'Completed' %} &amp; Edit{% else %} &amp; Final Approval{% endif %}</h3>
+        <p style="color: #475569; font-size: 13px;">Rating scale: <strong>Excellent 5</strong> · <strong>Outstanding 4</strong> · <strong>Good 3</strong> · <strong>Average 2</strong> · <strong>Poor 1</strong></p>
 
         <form method="post" action="{{ url_for('view_edit_appraisal', appraisal_id=appraisal.id) }}">
             <input type="hidden" name="action" value="manager_review">
@@ -227,11 +228,11 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                     <div>
                         <h4 style="margin: 0; color: #0f172a;">KRA {{ loop.index }}: {{ kra.title }}</h4>
-                        <span style="font-size: 12.5px; color: #2563eb; font-weight: 700;">Emp Self-Rating: ⭐ {{ '%.1f'|format(kra.self_rating) if kra.self_rating else '-' }} / 5.0</span>
+                        <span style="font-size: 12.5px; color: #2563eb; font-weight: 700;">Emp Self-Rating: {{ '%.1f'|format(kra.self_rating) if kra.self_rating else '-' }} / 5.0</span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <label style="font-weight: 700; font-size: 13px; color: #166534;">Manager KRA Rating (1-5):</label>
-                        <input type="number" step="0.1" min="1.0" max="5.0" name="kra_manager_rating_{{ kra.id }}" value="{{ kra.manager_rating or 4.5 }}" required style="width: 85px; padding: 4px 8px; border-radius: 6px; border: 1px solid #166534; font-weight: 700;">
+                        <input type="number" step="1" min="1" max="5" name="kra_manager_rating_{{ kra.id }}" value="{{ kra.manager_rating if kra.manager_rating is not none else 3.0 }}" required style="width: 85px; padding: 4px 8px; border-radius: 6px; border: 1px solid #166534; font-weight: 700;">
                     </div>
                 </div>
 
@@ -249,9 +250,9 @@
                             <td>{{ kpi.target_value }} {{ kpi.unit }}</td>
                             <td><strong>{{ kpi.actual_value }} {{ kpi.unit }}</strong></td>
                             <td style="font-weight: 700; color: #166534;">{{ '%.1f%%'|format(kpi.achievement_percent) }}</td>
-                            <td>⭐ {{ '%.1f'|format(kpi.self_rating) if kpi.self_rating else '-' }}</td>
+                            <td>{{ '%.1f'|format(kpi.self_rating) if kpi.self_rating else '-' }}</td>
                             <td>
-                                <input type="number" step="0.1" min="1.0" max="5.0" name="kpi_manager_rating_{{ kpi.id }}" value="{{ kpi.manager_rating or 4.5 }}" required style="width: 85px; padding: 4px 8px; border-radius: 6px; border: 1px solid #166534; font-weight: 700;">
+                                <input type="number" step="1" min="1" max="5" name="kpi_manager_rating_{{ kpi.id }}" value="{{ kpi.manager_rating if kpi.manager_rating is not none else 3.0 }}" required style="width: 85px; padding: 4px 8px; border-radius: 6px; border: 1px solid #166534; font-weight: 700;">
                             </td>
                         </tr>
                         {% endfor %}
@@ -262,23 +263,23 @@
 
             <div style="margin-bottom: 15px;">
                 <label style="font-weight: 700; display: block; margin-bottom: 5px;">Overall Manager Performance Rating (Out of 5.0):</label>
-                <input type="number" step="0.1" min="1.0" max="5.0" name="rating" value="4.5" required style="width: 150px; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 700;">
+                <input type="number" step="1" min="1" max="5" name="rating" value="{{ appraisal.rating if appraisal.rating is not none else 3.0 }}" required style="width: 150px; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 700;">
             </div>
 
             <div style="margin-bottom: 15px;">
                 <label style="font-weight: 700; display: block; margin-bottom: 5px;">Potential Rating (Out of 5.0):</label>
-                <input type="number" step="0.1" min="1.0" max="5.0" name="potential_rating" value="4.0" required style="width: 150px; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 700;">
+                <input type="number" step="1" min="1" max="5" name="potential_rating" value="{{ appraisal.potential_rating if appraisal.potential_rating is not none else 3.0 }}" required style="width: 150px; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 700;">
                 <small style="display:block; color:#64748b; margin-top:4px;">Use this for future capacity, learning agility, and readiness for broader responsibility.</small>
             </div>
 
             <div style="margin-bottom: 20px;">
                 <label style="font-weight: 700; display: block; margin-bottom: 5px;">Evaluator Comments & Performance Review:</label>
-                <textarea name="evaluator_comments" rows="3" required placeholder="Enter overall performance feedback for employee..." style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-family: inherit;"></textarea>
+                <textarea name="evaluator_comments" rows="3" required placeholder="Enter overall performance feedback for employee..." style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-family: inherit;">{{ appraisal.evaluator_comments or '' }}</textarea>
             </div>
 
             <div style="display: flex; gap: 15px;">
                 <button type="submit" name="decision" value="complete" class="btn btn-primary" style="padding: 10px 24px; font-weight: 700;">
-                    ✅ Complete & Finalize Appraisal
+                    Save Rating Changes
                 </button>
             </div>
         </form>
@@ -291,7 +292,7 @@
             <input type="hidden" name="decision" value="send_back">
 
             <label style="font-weight: 700; color: #991b1b; display: block; margin-bottom: 5px;">
-                ⚠️ Send Back Ratings to Employee for Edit:
+                Send Back Ratings to Employee for Edit:
             </label>
             <div style="display: flex; gap: 10px;">
                 <input type="text" name="sendback_note" required placeholder="Reason for sending back self-ratings (e.g. Re-evaluate section ratings)..." style="flex: 1; padding: 8px 12px; border-radius: 6px; border: 1px solid #fca5a5;">
@@ -331,10 +332,10 @@
                 <div style="display: flex; gap: 10px; align-items: center;">
                     <span style="background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 12.5px;">Weightage: {{ kra.weightage_percent }}%</span>
                     {% if kra.self_rating %}
-                    <span style="background: #f1f5f9; color: #0f172a; padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 12.5px;">Self: ⭐ {{ '%.1f'|format(kra.self_rating) }}</span>
+                    <span style="background: #f1f5f9; color: #0f172a; padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 12.5px;">Self: {{ '%.1f'|format(kra.self_rating) }}</span>
                     {% endif %}
                     {% if kra.manager_rating %}
-                    <span style="background: #dcfce7; color: #166534; padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 12.5px;">Manager: ⭐ {{ '%.1f'|format(kra.manager_rating) }}</span>
+                    <span style="background: #dcfce7; color: #166534; padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 12.5px;">Manager: {{ '%.1f'|format(kra.manager_rating) }}</span>
                     {% endif %}
                 </div>
             </div>
@@ -354,8 +355,8 @@
                         <td><strong>{{ kpi.actual_value }} {{ kpi.unit }}</strong></td>
                         <td style="font-weight: 700; color: #166534;">{{ '%.1f%%'|format(kpi.achievement_percent) }}</td>
                         <td>{{ kpi.weightage_percent }}%</td>
-                        <td>{{ '⭐ %.1f'|format(kpi.self_rating) if kpi.self_rating else '-' }}</td>
-                        <td style="font-weight: 700; color: #166534;">{{ '⭐ %.1f'|format(kpi.manager_rating) if kpi.manager_rating else '-' }}</td>
+                        <td>{{ '%.1f'|format(kpi.self_rating) if kpi.self_rating else '-' }}</td>
+                        <td style="font-weight: 700; color: #166534;">{{ '%.1f'|format(kpi.manager_rating) if kpi.manager_rating else '-' }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -404,7 +405,7 @@ function addKRA(title="", desc="", weight=20, kpis=[]) {
     kraDiv.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <h4 style="margin: 0; color: #0f172a;">Key Result Area (KRA) #${currentKra + 1}</h4>
-            <button type="button" class="btn btn-outline" onclick="removeKRA(${currentKra})" style="padding: 2px 8px; font-size: 12px; color: #b91c1c; border-color: #fca5a5;">🗑️ Remove KRA</button>
+                            <button type="button" class="btn btn-outline" onclick="removeKRA(${currentKra})" style="padding: 2px 8px; font-size: 12px; color: #b91c1c; border-color: #fca5a5;">Remove KRA</button>
         </div>
         <div style="display: flex; gap: 15px; margin-bottom: 12px; flex-wrap: wrap;">
             <div style="flex: 2; min-width: 200px;">

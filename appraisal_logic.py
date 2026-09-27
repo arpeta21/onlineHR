@@ -7,11 +7,19 @@ metric-driven KPIs (max 6 per KRA, sum 100%), 2-stage approval workflow:
 """
 
 from datetime import datetime
+from flask_login import current_user
 from models import db, Appraisal, AppraisalKRA, AppraisalKPI, User, EmployeeProfile
+from time_utils import now_ist
 
 
 def create_appraisal(user_id, evaluator_id, period_type, year):
     """Initiate a new appraisal cycle for an employee."""
+    if not current_user.is_authenticated or current_user.role not in {"admin", "demo_admin"}:
+        return None, False, "You are not authorised to initiate appraisals."
+    if current_user.role == "demo_admin":
+        target = User.query.get(user_id)
+        if not target or target.created_by_id != current_user.id:
+            return None, False, "You are not authorised to initiate this appraisal."
     review_period = f"{period_type} {year}"
     existing = Appraisal.query.filter_by(
         user_id=user_id,
@@ -21,7 +29,17 @@ def create_appraisal(user_id, evaluator_id, period_type, year):
     if existing:
         return existing, False, f"Appraisal for period '{review_period}' already exists for this employee."
 
+    previous_appraisals = Appraisal.query.filter(
+        Appraisal.user_id == user_id,
+        Appraisal.status != "Archived",
+    ).all()
+    for previous in previous_appraisals:
+        previous.status = "Archived"
+        previous.updated_at = now_ist()
+
+    target = User.query.get(user_id)
     appraisal = Appraisal(
+        tenant_id=target.tenant_id if target else None,
         user_id=user_id,
         evaluator_id=evaluator_id,
         period_type=period_type,
@@ -43,13 +61,44 @@ def submit_kras_for_approval(appraisal_id, kras_input_data):
     appraisal = Appraisal.query.get(appraisal_id)
     if not appraisal:
         return None, False, "Appraisal record not found."
+    if not current_user.is_authenticated or current_user.id != appraisal.user_id:
+        return None, False, "You are not authorised to submit these KRAs."
+
+    editable_statuses = ("Initiated", "KRA Draft", "KRA Sent Back for Edit")
+    if appraisal.status not in editable_statuses:
+        return None, False, (
+            f"KRAs cannot be edited while the appraisal status is "
+            f"'{appraisal.status}'."
+        )
 
     if len(kras_input_data) > 5:
         return None, False, "Maximum 5 KRAs allowed per appraisal."
 
-    total_kra_weight = sum(float(k.get("weightage_percent") or 0.0) for k in kras_input_data)
+    try:
+        kra_weights = [float(k.get("weightage_percent") or 0.0) for k in kras_input_data]
+    except (TypeError, ValueError):
+        return None, False, "KRA weightages must be valid numbers."
+    if any(weight <= 0 or weight > 100 for weight in kra_weights):
+        return None, False, "Each KRA weightage must be greater than 0% and no more than 100%."
+    total_kra_weight = sum(kra_weights)
     if abs(total_kra_weight - 100.0) > 0.1:
         return None, False, f"Total weightage across all KRAs must equal 100% (currently {total_kra_weight:.1f}%)."
+
+    for k_data in kras_input_data:
+        kpis_data = k_data.get("kpis", [])
+        if not kpis_data:
+            return None, False, f"KRA '{k_data.get('title', '').strip()}' must have at least one KPI."
+        if len(kpis_data) > 6:
+            return None, False, f"Maximum 6 KPIs allowed for KRA '{k_data.get('title', '').strip()}'."
+        try:
+            kpi_weights = [float(kp.get("weightage_percent") or 0.0) for kp in kpis_data]
+        except (TypeError, ValueError):
+            return None, False, "KPI weightages must be valid numbers."
+        if any(weight <= 0 or weight > 100 for weight in kpi_weights):
+            return None, False, "Each KPI weightage must be greater than 0% and no more than 100%."
+        total_kpi_weight = sum(kpi_weights)
+        if abs(total_kpi_weight - 100.0) > 0.1:
+            return None, False, f"Total weightage across KPIs in KRA '{k_data.get('title', '').strip()}' must equal 100% (currently {total_kpi_weight:.1f}%)."
 
     # Clear old KRAs to replace with updated structure
     AppraisalKRA.query.filter_by(appraisal_id=appraisal.id).delete()
@@ -68,12 +117,6 @@ def submit_kras_for_approval(appraisal_id, kras_input_data):
         db.session.flush()
 
         kpis_data = k_data.get("kpis", [])
-        if len(kpis_data) > 6:
-            return None, False, f"Maximum 6 KPIs allowed for KRA '{kra.title}'."
-
-        total_kpi_weight = sum(float(kp.get("weightage_percent") or 0.0) for kp in kpis_data)
-        if kpis_data and abs(total_kpi_weight - 100.0) > 0.1:
-            return None, False, f"Total weightage across KPIs in KRA '{kra.title}' must equal 100% (currently {total_kpi_weight:.1f}%)."
 
         kra_score = 0.0
         for kp_data in kpis_data:
@@ -103,7 +146,7 @@ def submit_kras_for_approval(appraisal_id, kras_input_data):
     appraisal.weighted_score = round(overall_weighted_score, 2)
     appraisal.status = "KRA Submitted for Approval"
     appraisal.sendback_note = None
-    appraisal.updated_at = datetime.utcnow()
+    appraisal.updated_at = now_ist()
 
     db.session.commit()
     return appraisal, True, "KRAs submitted to Manager for approval!"
@@ -117,9 +160,28 @@ def decide_kras_approval(appraisal_id, evaluator_id, decision, sendback_note=Non
     appraisal = Appraisal.query.get(appraisal_id)
     if not appraisal:
         return None, False, "Appraisal record not found."
+    if not current_user.is_authenticated or current_user.id != evaluator_id:
+        return None, False, "You are not authorised to decide these KRAs."
+    if current_user.role == "manager":
+        if (not appraisal.user.profile
+                or appraisal.tenant_id != current_user.tenant_id
+                or appraisal.user.tenant_id != current_user.tenant_id
+                or appraisal.user.profile.reporting_manager_id != current_user.id):
+            return None, False, "You are not authorised to decide these KRAs."
+    elif current_user.role == "demo_admin":
+        if appraisal.tenant_id != current_user.tenant_id:
+            return None, False, "You are not authorised to decide these KRAs."
+    elif current_user.role != "admin":
+        return None, False, "You are not authorised to decide these KRAs."
+
+    if appraisal.status != "KRA Submitted for Approval":
+        return None, False, (
+            f"There are no KRAs pending approval for this appraisal "
+            f"(current status: '{appraisal.status}')."
+        )
 
     appraisal.evaluator_id = evaluator_id
-    appraisal.updated_at = datetime.utcnow()
+    appraisal.updated_at = now_ist()
 
     if decision == "approve":
         appraisal.status = "KRA Approved (Eligible for Rating)"
@@ -143,15 +205,32 @@ def submit_self_ratings(appraisal_id, self_rating, self_comments, kra_ratings=No
     appraisal = Appraisal.query.get(appraisal_id)
     if not appraisal:
         return None, False, "Appraisal record not found."
+    if not current_user.is_authenticated or current_user.id != appraisal.user_id:
+        return None, False, "You are not authorised to submit these ratings."
 
     if appraisal.status not in ["KRA Approved (Eligible for Rating)", "Rating Sent Back for Edit"]:
         return None, False, "Ratings can only be submitted after KRAs are approved by your Manager."
+
+    def valid_rating(value):
+        try:
+            return float(value) in {1.0, 2.0, 3.0, 4.0, 5.0}
+        except (TypeError, ValueError):
+            return False
+
+    if not valid_rating(self_rating):
+        return None, False, "Self-rating must be between 1 and 5."
+    for value in (kra_ratings or {}).values():
+        if not valid_rating(value):
+            return None, False, "KRA self-ratings must be between 1 and 5."
+    for value in (kpi_ratings or {}).values():
+        if not valid_rating(value):
+            return None, False, "KPI self-ratings must be between 1 and 5."
 
     appraisal.self_rating = float(self_rating) if self_rating else None
     appraisal.self_comments = self_comments
     appraisal.status = "Self Review Submitted"
     appraisal.sendback_note = None
-    appraisal.updated_at = datetime.utcnow()
+    appraisal.updated_at = now_ist()
 
     if kra_ratings:
         for kra in appraisal.kras:
@@ -175,9 +254,43 @@ def submit_manager_ratings(appraisal_id, evaluator_id, rating, evaluator_comment
     appraisal = Appraisal.query.get(appraisal_id)
     if not appraisal:
         return None, False, "Appraisal record not found."
+    if not current_user.is_authenticated or current_user.id != evaluator_id:
+        return None, False, "You are not authorised to submit manager ratings."
+
+    def valid_rating(value):
+        try:
+            return float(value) in {1.0, 2.0, 3.0, 4.0, 5.0}
+        except (TypeError, ValueError):
+            return False
+
+    if decision == "complete" and not valid_rating(rating):
+        return None, False, "Manager rating must be between 1 and 5."
+    for value in (kra_ratings or {}).values():
+        if not valid_rating(value):
+            return None, False, "KRA ratings must be between 1 and 5."
+    for value in (kpi_ratings or {}).values():
+        if not valid_rating(value):
+            return None, False, "KPI ratings must be between 1 and 5."
+    if current_user.role == "manager":
+        if (not appraisal.user.profile
+                or appraisal.tenant_id != current_user.tenant_id
+                or appraisal.user.tenant_id != current_user.tenant_id
+                or appraisal.user.profile.reporting_manager_id != current_user.id):
+            return None, False, "You are not authorised to submit manager ratings."
+    elif current_user.role == "demo_admin":
+        if appraisal.tenant_id != current_user.tenant_id:
+            return None, False, "You are not authorised to submit manager ratings."
+    elif current_user.role != "admin":
+        return None, False, "You are not authorised to submit manager ratings."
+
+    if appraisal.status != "Self Review Submitted":
+        return None, False, (
+            f"Manager ratings can only be submitted after the employee's "
+            f"self-review (current status: '{appraisal.status}')."
+        )
 
     appraisal.evaluator_id = evaluator_id
-    appraisal.updated_at = datetime.utcnow()
+    appraisal.updated_at = now_ist()
 
     if decision == "complete":
         appraisal.rating = float(rating) if rating else None

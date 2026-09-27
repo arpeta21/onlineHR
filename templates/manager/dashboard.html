@@ -3,6 +3,14 @@
 {% block page_title %}Manager overview{% endblock %}
 
 {% block content %}
+<div class="overview-page">
+<div class="dashboard-hero">
+  <div>
+    <div class="eyebrow">PEOPLE OPERATIONS</div>
+    <h1>Manager overview</h1>
+    <p>Keep your team, attendance and approvals moving.</p>
+  </div>
+</div>
 <div class="stat-row">
   <div class="stat-card">
     <div class="num">{{ team|length }}</div>
@@ -17,7 +25,7 @@
     <div class="lbl">Profiles pending</div>
   </div>
   <div class="stat-card">
-    <a href="{{ url_for('manager_leave_requests') }}" style="text-decoration:none; color:inherit; display:block;">
+    <a class="kpi-link" href="{{ url_for('manager_leave_requests') }}">
       <div class="num">{{ pending_leaves }}</div>
       <div class="lbl">Leave requests pending</div>
     </a>
@@ -26,17 +34,6 @@
 
 {% include "partials/overview_culture.html" %}
 
-<div class="card">
-  <h3>Policy assistant</h3>
-  <p class="card-sub">Search the latest handbook and policy documents for team guidance.</p>
-  <form method="get" action="{{ url_for('hr_resources', tab='resources') }}">
-    <div class="search-row">
-      <input type="text" name="q" placeholder="Ask about leave, attendance, or company policy" required>
-      <button class="btn btn-primary" type="submit">Quick answer</button>
-    </div>
-  </form>
-</div>
-
 {% if not current_user.profile.profile_completed %}
 <div class="help-banner">
   Don't forget to complete your own profile — you're an employee too.
@@ -44,7 +41,7 @@
 </div>
 {% endif %}
 
-<div class="card">
+<div class="card dashboard-card">
   <h3>Your team</h3>
   <p class="card-sub">Everyone whose reporting manager is set to you.</p>
 
@@ -74,5 +71,6 @@
     No one has been assigned to you yet. Once your administrator sets you as a reporting manager for an employee, they'll show up here.
   </div>
   {% endif %}
+</div>
 </div>
 {% endblock %}

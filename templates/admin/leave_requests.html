@@ -1,56 +1,75 @@
 {% extends "base.html" %}
-{% block title %}Leave requests{% endblock %}
-{% block page_title %}Leave requests{% endblock %}
+{% block title %}Leave Requests{% endblock %}
+{% block page_title %}Leave Requests{% endblock %}
+{% block page_sub %}Admin Override View{% endblock %}
 
 {% block content %}
-<div class="help-banner">
-  Requests normally go to each employee's reporting manager. As admin, you can see everything
-  here and step in to approve or reject directly if needed.
+<div class="tabs leave-tabs">
+  <a class="tab active" href="{{ url_for('admin_leave_requests') }}">Leave Requests</a>
+  {% if current_user.role == 'admin' %}<a class="tab" href="{{ url_for('admin_holidays') }}">Holiday Calendar</a>{% endif %}
+  <a class="tab" href="{{ url_for('admin_special_approvals') }}">Special Approvals</a>
+</div>
+<div class="topbar page-toolbar" style="justify-content:flex-end; margin-bottom:18px;">
+  <div class="toolbar-actions"><a href="{{ url_for('admin_leave_types') }}" class="btn">Manage Leave Types</a></div>
 </div>
 
-<div style="display:flex; gap:8px; margin-bottom: 18px;">
+<div class="tabs">
   {% for s, label in [('pending','Pending'), ('approved','Approved'), ('rejected','Rejected'), ('all','All')] %}
     <a href="{{ url_for('admin_leave_requests', status=s) }}"
-       class="btn btn-sm {{ 'btn-primary' if status_filter == s else 'btn-outline' }}">{{ label }}</a>
+       class="tab {{ 'active' if status_filter == s else '' }}">{{ label }}</a>
   {% endfor %}
 </div>
 
-<div class="card">
+<div class="table-wrap">
   {% if applications %}
-  <table class="list">
+  <table>
     <thead>
       <tr>
-        <th>Employee</th><th>Leave type</th><th>Dates</th><th>Days</th>
-        <th>Reason</th><th>Status</th><th></th>
+        <th>Employee</th><th>Leave Type</th><th>Dates</th><th>Days</th>
+        <th>Reason</th><th>Status</th><th>Action</th>
       </tr>
     </thead>
     <tbody>
       {% for a in applications %}
       <tr>
-        <td>{{ a.user.profile.full_name }}<br><span style="color:var(--ink-soft); font-size:12px;">{{ a.user.employee_code }}</span></td>
-        <td>{{ a.leave_type.name }}</td>
-        <td>{{ a.start_date.strftime('%d %b %Y') }} – {{ a.end_date.strftime('%d %b %Y') }}</td>
-        <td>{{ a.days|round(1) }}</td>
-        <td style="max-width:200px;">{{ a.reason or '—' }}</td>
         <td>
-          {% if a.status == 'pending' %}<span class="badge badge-pending">Pending</span>
-          {% elif a.status == 'approved' %}<span class="badge badge-complete">Approved</span>
-          {% elif a.status == 'rejected' %}<span class="badge" style="background:var(--rose-soft); color:var(--rose);">Rejected</span>
-          {% else %}<span class="badge" style="background:var(--line); color:var(--ink-soft);">Cancelled</span>{% endif %}
+          <div class="namecell">
+            <div class="initials">{{ (a.user.profile.full_name|default('U'))[:2]|upper }}</div>
+            <div>
+              <div class="name">{{ a.user.profile.full_name }}</div>
+              <div class="sub">{{ a.user.employee_code }}</div>
+            </div>
+          </div>
         </td>
-        <td style="white-space:nowrap;">
+        <td><span class="type-pill">{{ a.leave_type.name }}</span></td>
+        <td class="dates">
+          {{ a.start_date.strftime('%d %b %Y') }}
+          {% if a.start_date != a.end_date %} – {{ a.end_date.strftime('%d %b %Y') }}{% endif %}
+        </td>
+        <td>{{ a.days|round(1) }}</td>
+        <td class="reason">{{ a.reason or '—' }}</td>
+        <td>
+          {% if a.status == 'pending' %}<span class="badge warn"><span class="d"></span>Pending</span>
+          {% elif a.status == 'approved' %}<span class="badge ok"><span class="d"></span>Approved</span>
+          {% elif a.status == 'rejected' %}<span class="badge bad"><span class="d"></span>Rejected</span>
+          {% else %}<span class="badge neutral"><span class="d"></span>Cancelled</span>{% endif %}
+        </td>
+        <td>
           {% if a.status == 'pending' %}
-          <form method="POST" action="{{ url_for('admin_decide_leave', app_id=a.id) }}" style="display:inline;">
-            <input type="hidden" name="decision" value="approved">
-            <button type="submit" class="btn btn-outline btn-sm">Approve</button>
-          </form>
-          <form method="POST" action="{{ url_for('admin_decide_leave', app_id=a.id) }}" style="display:inline;"
-                onsubmit="return confirm('Reject this leave request?');">
-            <input type="hidden" name="decision" value="rejected">
-            <button type="submit" class="btn btn-outline btn-sm" style="color:var(--rose);">Reject</button>
-          </form>
+          <div class="row-actions">
+            <form method="POST" action="{{ url_for('admin_decide_leave', app_id=a.id) }}" style="margin:0;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="decision" value="approved">
+              <button type="submit" class="approve">Approve</button>
+            </form>
+            <form method="POST" action="{{ url_for('admin_decide_leave', app_id=a.id) }}" style="margin:0;" onsubmit="return confirm('Reject this leave request?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="decision" value="rejected">
+              <button type="submit" class="reject">Reject</button>
+            </form>
+          </div>
           {% else %}
-            <span style="color:var(--ink-soft); font-size:13px;">
+            <span style="color:var(--text-faint); font-size:11.5px;">
               {% if a.decided_by %}by {{ a.decided_by.profile.full_name }}{% endif %}
             </span>
           {% endif %}
@@ -60,10 +79,10 @@
     </tbody>
   </table>
   {% else %}
-  <div class="empty-state">
-    <div class="sq"></div>
-    No {{ status_filter }} leave requests.
+  <div style="padding:40px; text-align:center; color:var(--text-faint);">
+    No {{ status_filter }} leave requests found.
   </div>
   {% endif %}
 </div>
 {% endblock %}
+

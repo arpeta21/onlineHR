@@ -1,0 +1,5 @@
+{% if current_user.role == 'admin' %}
+<div class="page-actions">
+  <a href="{{ url_for('payroll_dashboard') }}" class="btn ghost">← Back to Payroll</a>
+</div>
+{% endif %}

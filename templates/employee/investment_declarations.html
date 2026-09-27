@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Investment Declarations{% endblock %}
+{% block page_title %}Investment Declarations{% endblock %}
+
+{% block content %}
+{% set form_values = form_values or {} %}
+{% set current_fy = current_year|string + '-' + '%02d'|format((current_year + 1) % 100) %}
+{% set financial_year_value = form_values.get('financial_year', editing.financial_year if editing else current_fy) %}
+{% set section_value = form_values.get('section', editing.section if editing else '') %}
+{% set amount_value = form_values.get('declared_amount', editing.declared_amount if editing else '') %}
+
+<div class="card">
+  <h3>{{ 'Edit Investment Declaration' if editing else 'Investment Declaration' }}</h3>
+  <p class="card-sub">Save a draft to continue later. Submitted declarations stay out of TDS until an authorized Admin approves them. Only approved eligible amounts under the old tax regime reduce taxable income.</p>
+  {% if editing and editing.status == 'rejected' and editing.decision_note %}
+  <div class="notice notice-warn"><span class="notice-icon">!</span><div><strong>HR remarks</strong><span>{{ editing.decision_note }}</span></div></div>
+  {% endif %}
+  <form method="post" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if editing %}<input type="hidden" name="declaration_id" value="{{ editing.id }}">{% endif %}
+    <label for="financial_year">Financial Year</label>
+    <input id="financial_year" type="text" name="financial_year" class="form-control" value="{{ financial_year_value }}" placeholder="2026-27" required>
+    <br>
+    <label for="tax_regime">Income-tax Regime</label>
+    <select id="tax_regime" class="form-control" disabled>
+      <option value="old_regime" {% if tax_regime == 'old_regime' %}selected{% endif %}>Old Regime</option>
+      <option value="new_regime" {% if tax_regime == 'new_regime' %}selected{% endif %}>New Regime</option>
+    </select>
+    <p class="card-sub">This is the tax regime currently set on your employee profile.</p>
+    <br>
+    <label for="section">Declaration Section</label>
+    <select id="section" name="section" class="form-control" required>
+      {% for section in sections %}
+      <option value="{{ section }}" {% if section == section_value %}selected{% endif %}>{{ section }}</option>
+      {% endfor %}
+    </select>
+    <br>
+    <label for="declared_amount">Declared Amount (₹)</label>
+    <input id="declared_amount" type="number" name="declared_amount" class="form-control" min="0" step="0.01" value="{{ amount_value }}">
+    <br>
+    <label for="document">Supporting Document</label>
+    <input id="document" type="file" name="document" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx">
+    {% if editing and editing.document_filename %}
+    <p class="card-sub">Current proof: <a href="{{ url_for('download_investment_document', declaration_id=editing.id) }}">View supporting document</a>. Upload a new file to replace it.</p>
+    {% else %}
+    <p class="card-sub">Supporting proof is required when submitting. You can save a draft without a file.</p>
+    {% endif %}
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:18px;">
+      <button type="submit" name="action" value="save_draft" class="btn btn-outline">Save Draft</button>
+      <button type="submit" name="action" value="submit" class="btn btn-primary">Submit Declaration</button>
+      {% if editing %}<a href="{{ url_for('employee_investment_declarations') }}" class="btn btn-outline">Cancel</a>{% endif %}
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h3>My Declarations</h3>
+  <table class="list">
+    <thead><tr><th>FY</th><th>Regime</th><th>Section</th><th>Declared</th><th>Approved</th><th>Status</th><th>Action Required</th><th>Document</th><th>HR Remarks</th></tr></thead>
+    <tbody>
+      {% for declaration in declarations %}
+      <tr>
+        <td>{{ declaration.financial_year }}</td>
+        <td>{{ declaration.tax_regime.replace('_', ' ').title() }}</td>
+        <td>{{ declaration.section }}</td>
+        <td>₹{{ '%.2f'|format(declaration.declared_amount) }}</td>
+        <td>₹{{ '%.2f'|format(declaration.approved_amount) }}</td>
+        <td>{{ 'Submitted' if declaration.status == 'pending' else declaration.status.title() }}</td>
+        <td>
+          {% if declaration.status == 'draft' %}Complete and submit
+          {% elif declaration.status == 'rejected' %}Update and resubmit
+          {% elif declaration.status in ['submitted', 'pending'] %}Waiting for HR review
+          {% else %}No action required{% endif %}
+          {% if declaration.status in ['draft', 'rejected'] %}
+          <br><a href="{{ url_for('employee_investment_declarations', edit=declaration.id) }}">Edit</a>
+          {% endif %}
+        </td>
+        <td>{% if declaration.document_filename %}<a href="{{ url_for('download_investment_document', declaration_id=declaration.id) }}">View</a>{% else %}—{% endif %}</td>
+        <td>{{ declaration.decision_note or '—' }}</td>
+      </tr>
+      {% else %}<tr><td colspan="9">No declarations yet.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

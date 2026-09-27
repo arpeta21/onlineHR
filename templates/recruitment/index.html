@@ -4,18 +4,22 @@
 {% block page_title %}Recruitment & Manpower Requisition (ATS){% endblock %}
 
 {% block content %}
+<div class="recruitment-subpage">
+<div class="tabs recruitment-tabs">
+    <a class="tab active" href="{{ url_for('recruitment_dashboard') }}">Pipeline</a>
+    <a class="tab" href="{{ url_for('recruitment_metrics') }}">Metrics &amp; Budget</a>
+    <a class="tab" href="{{ url_for('cv_screener') }}">CV Screener</a>
+    <a class="tab" href="{{ url_for('interviews_calendar') }}">Interviews</a>
+    <a class="tab" href="{{ url_for('create_requisition') }}">Manpower Requisition</a>
+</div>
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
     <div>
-        <h3 style="margin: 0; color: #0f172a;">🤝 Recruitment & Applicant Tracking System</h3>
         <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">
             Manage Manpower Requisitions, CV screening with Match % scores, shared interview calendars, and offer letter closures.
         </p>
     </div>
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-        <a href="{{ url_for('export_requisitions_csv_route') }}" class="btn btn-outline" style="font-weight: 600;">📥 Export Requisitions CSV</a>
-        <a href="{{ url_for('cv_screener') }}" class="btn btn-secondary" style="font-weight: 600;">🔍 CV Screener</a>
-        <a href="{{ url_for('interviews_calendar') }}" class="btn btn-secondary" style="font-weight: 600;">📅 Shared Interview Calendar</a>
-        <a href="{{ url_for('create_requisition') }}" class="btn btn-primary" style="font-weight: 700;">➕ New Manpower Requisition</a>
+        <a href="{{ url_for('export_requisitions_csv_route') }}" class="btn btn-outline" style="font-weight: 600;">Export Requisitions Excel</a>
     </div>
 </div>
 
@@ -104,7 +108,7 @@
 
 <!-- Candidate Recruitment Pipeline -->
 <div class="card">
-    <h3 style="margin-top: 0;">👥 Active Candidate Pipeline & Offer Closures</h3>
+    <h3 style="margin-top: 0;">Active Candidate Pipeline & Offer Closures</h3>
     
     {% if candidates %}
     <div class="table-scroll">
@@ -133,18 +137,18 @@
                         {% if c.status == 'Offered' %}
                         <span class="badge" style="background: #dbeafe; color: #1e40af; font-weight: 700;">📜 Offered (CTC: ₹{{ '%.1f'|format(c.offered_ctc or 0) }}L)</span>
                         {% elif c.status == 'Shortlisted' %}
-                        <span class="badge badge-complete">⭐ Shortlisted</span>
+                        <span class="badge badge-complete">Shortlisted</span>
                         {% elif c.status == 'Final Discussion' %}
-                        <span class="badge" style="background: #fef9c3; color: #a16207; font-weight: 700;">🤝 Final Discussion</span>
+                        <span class="badge" style="background: #fef9c3; color: #a16207; font-weight: 700;">Final Discussion</span>
                         {% elif c.status == 'Rejected' %}
-                        <span class="badge" style="background: #fee2e2; color: #b91c1c; font-weight: 700;">❌ Rejected (Not Shortlisted)</span>
+                        <span class="badge" style="background: #fee2e2; color: #b91c1c; font-weight: 700;">Rejected (Not Shortlisted)</span>
                         {% else %}
                         <span class="badge badge-pending">{{ c.status }}</span>
                         {% endif %}
                     </td>
                     <td>
                         {% if c.joining_date %}
-                        <strong style="color: #16a34a;">📅 {{ c.joining_date.strftime('%d-%b-%Y') }}</strong>
+                        <strong style="color: #16a34a;">{{ c.joining_date.strftime('%d-%b-%Y') }}</strong>
                         {% else %}
                         —
                         {% endif %}
@@ -161,14 +165,14 @@
                             </a>
                             {% elif c.status == 'Screened' %}
                             <a href="{{ url_for('interviews_calendar') }}" class="btn btn-sm btn-outline" style="padding: 4px 10px; font-weight: 600;">
-                                📅 Schedule
+                                Schedule
                             </a>
                             {% endif %}
 
                             {% if current_user.role in ['admin', 'demo_admin'] %}
                             <form action="{{ url_for('delete_candidate_route', candidate_id=c.id) }}" method="post" onsubmit="return confirm('Delete candidate {{ c.full_name }} from recruitment pipeline?');" style="display: inline;">
                                 <button type="submit" class="btn btn-sm btn-danger" style="padding: 3px 8px; font-size: 11px; background: #dc2626; border-color: #dc2626;">
-                                    🗑️ Delete
+                                    Delete
                                 </button>
                             </form>
                             {% endif %}
@@ -186,4 +190,5 @@
     </div>
     {% endif %}
 </div>
+ </div>
 {% endblock %}

@@ -4,9 +4,9 @@
 {% block page_title %}Manager Shared Interview Calendar & Evaluation{% endblock %}
 
 {% block content %}
+<div class="recruitment-subpage">
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
     <div>
-        <h3 style="margin: 0; color: #0f172a;">📅 Shared Manager Interview Calendar & Evaluation</h3>
         <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">
             Book interview slots, view blocked interviewer calendars, access candidate CVs, and submit evaluation ratings.
         </p>
@@ -61,7 +61,7 @@
         </div>
 
         <button type="submit" class="btn btn-primary" style="padding: 10px 24px; font-weight: 700;">
-            📅 Schedule Interview & Block Calendar
+            Schedule Interview & Block Calendar
         </button>
     </form>
     {% else %}
@@ -87,7 +87,7 @@
                 </p>
             </div>
             <div style="text-align: right;">
-                <div style="font-weight: 800; font-size: 15px; color: #2563eb;">📅 {{ inv.scheduled_time.strftime('%d-%b-%Y at %I:%M %p') }}</div>
+                <div style="font-weight: 800; font-size: 15px; color: #2563eb;">{{ inv.scheduled_time.strftime('%d-%b-%Y at %I:%M %p') }}</div>
                 <div style="font-size: 12.5px; color: #475569; margin-top: 2px;">📍 {{ inv.location_or_link or 'In-Person' }}</div>
             </div>
         </div>
@@ -130,13 +130,13 @@
             </div>
 
             <button type="submit" class="btn btn-primary" style="padding: 8px 18px; font-weight: 700;">
-                ✅ Submit Feedback & Update Candidate Pipeline
+                Submit Feedback & Update Candidate Pipeline
             </button>
         </form>
         {% elif inv.status == 'Completed' %}
         <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 12px; border-radius: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                <strong style="color: #166534;">Evaluation Completed (Rating: ⭐ {{ '%.1f'|format(inv.manager_rating or 0) }}/5.0)</strong>
+                <strong style="color: #166534;">Evaluation Completed (Rating: {{ '%.1f'|format(inv.manager_rating or 0) }}/5.0)</strong>
                 <span class="badge badge-complete">{{ inv.decision }}</span>
             </div>
             <p style="margin: 0; font-size: 13px; color: #14532d;">Feedback: {{ inv.manager_feedback or '-' }}</p>

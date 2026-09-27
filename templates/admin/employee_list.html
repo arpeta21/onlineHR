@@ -1,93 +1,137 @@
 {% extends "base.html" %}
-{% block title %}All people{% endblock %}
-{% block page_title %}All people{% endblock %}
+{% block title %}All People{% endblock %}
+{% block page_title %}All People{% endblock %}
+{% block page_sub %}{{ people|length }} total · Admin View{% endblock %}
 
 {% block content %}
-<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 18px; gap: 16px;">
-  <form method="GET" style="flex-grow:1; max-width: 360px;">
-    <input type="text" name="q" value="{{ q }}" placeholder="Search by name or employee ID…">
+<div class="toolbar people-toolbar">
+  <form method="GET" class="search-wrap" style="display:flex;">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    <input type="text" name="q" value="{{ q }}" class="search" placeholder="Search by name or ID">
   </form>
-  <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-    <a href="{{ url_for('export_employee_report') }}" class="btn btn-outline" style="font-weight: 600;">📥 Export Employee Report (CSV)</a>
-    <a href="{{ url_for('admin_bulk_employee_template') }}" class="btn btn-outline">Download CSV template</a>
-    <a href="{{ url_for('admin_bulk_import_employees') }}" class="btn btn-primary">Bulk upload</a>
-    <a href="{{ url_for('admin_create_employee') }}" class="btn btn-primary">Add employee</a>
+  <div class="toolbar-actions">
+    <a href="{{ url_for('export_employee_report') }}" class="btn ghost">Export Excel</a>
+    <a href="{{ url_for('admin_bulk_import_employees') }}" class="btn ghost">Bulk Upload</a>
+    <a href="{{ url_for('admin_create_employee') }}" class="btn">Add Employee</a>
+    {% if show_inactive %}
+    <a href="{{ url_for('admin_employee_list', q=q) }}" class="btn ghost">Show Active</a>
+    {% else %}
+    <a href="{{ url_for('admin_employee_list', q=q, show_inactive=1) }}" class="btn ghost">Show Inactive</a>
+    {% endif %}
   </div>
 </div>
 
-<div class="card">
+<div class="table-wrap">
   {% if people %}
-  <div class="table-scroll">
-  <table class="list">
-    <thead>
-      <tr>
-        <th>Name</th><th>Employee ID</th><th>Role</th><th>Designation</th>
-        <th>Reporting manager</th><th>Profile</th><th>Account</th><th></th>
-      </tr>
-    </thead>
+  <table>
+    <thead><tr>
+      <th><label style="display:flex; align-items:center; gap:8px; white-space:nowrap; cursor:pointer;"><input type="checkbox" id="select-all-people" aria-label="Select all people" title="Select all people" style="width:18px; height:18px; margin:0; flex:none; cursor:pointer;"> Select all</label></th>
+      <th>Employee</th><th>Code</th><th>Role</th><th>Designation</th><th>Department</th><th>Reporting Manager</th><th>Status</th><th>Actions</th>
+    </tr></thead>
     <tbody>
       {% for u in people %}
-      <tr {{ 'style="opacity:.55;"' if not u.is_active }}>
-        <td>{{ u.profile.full_name if u.profile else '—' }}</td>
-        <td>{{ u.employee_code }}</td>
-        <td><span class="badge badge-{{ u.role }}">{{ u.role }}</span></td>
+      <tr {{ 'style="opacity:.6;"' if not u.is_active }}>
+        <td><input type="checkbox" id="person-{{ u.id }}" name="selected_user_ids" value="{{ u.id }}" form="people-selection-form" class="person-select" {% if u.id in selected_ids %}checked{% endif %} aria-label="Select {{ u.profile.full_name if u.profile else u.employee_code }}" title="Select {{ u.profile.full_name if u.profile else u.employee_code }}" style="width:18px; height:18px; margin:0; cursor:pointer;"></td>
+        <td>
+          <div class="namecell">
+            <div class="initials">{{ (u.profile.full_name|default('U'))[:2]|upper if u.profile else u.employee_code[:2] }}</div>
+            <div>
+              <div class="name">{{ u.profile.full_name if u.profile else '—' }}</div>
+              <div class="sub">{{ u.profile.personal_email or u.profile.phone_number or '—' }}</div>
+            </div>
+          </div>
+        </td>
+        <td class="code">{{ u.employee_code }}</td>
+        <td>
+          <span class="badge {% if u.role == 'admin' %}role-admin{% elif u.role == 'manager' %}role-manager{% else %}role-employee{% endif %}">{{ u.role|capitalize }}</span>
+        </td>
         <td>{{ u.profile.designation or '—' }}</td>
+        <td>{{ u.profile.department or '—' }}</td>
         <td>
           {% if u.profile and u.profile.reporting_manager %}
             {{ u.profile.reporting_manager.profile.full_name }}
           {% else %}—{% endif %}
         </td>
         <td>
-          {% if u.profile and u.profile.profile_completed %}
-            <span class="badge badge-complete">Complete</span>
-          {% else %}
-            <span class="badge badge-pending">Pending</span>
-          {% endif %}
-        </td>
-        <td>
           {% if u.is_active %}
-            <span class="badge badge-complete">Active</span>
+            <span class="badge ok"><span class="d"></span>Active</span>
           {% else %}
-            <span class="badge" style="background:var(--rose-soft); color:var(--rose);">Deactivated</span>
+            <span class="badge neutral"><span class="d"></span>Deactivated</span>
           {% endif %}
         </td>
-        <td>
-          <div class="row-actions">
-            <a href="{{ url_for('admin_view_employee', user_id=u.id) }}">View</a>
-            <a href="{{ url_for('admin_edit_employee', user_id=u.id) }}">Edit</a>
-            <form action="{{ url_for('admin_reset_password', user_id=u.id) }}" method="POST"
-                  onsubmit="return confirm('Reset password for {{ u.employee_code }} to the default?');">
-              <button type="submit" class="link-btn">Reset pwd</button>
-            </form>
-            {% if u.is_active %}
-            <form action="{{ url_for('admin_deactivate_employee', user_id=u.id) }}" method="POST"
-                  onsubmit="return confirm('Deactivate {{ u.profile.full_name }}? They will no longer be able to log in.');">
-              <button type="submit" class="link-btn" style="color:var(--rose);">Deactivate</button>
-            </form>
-            {% else %}
-            <form action="{{ url_for('admin_reactivate_employee', user_id=u.id) }}" method="POST">
-              <button type="submit" class="link-btn">Reactivate</button>
-            </form>
-            {% endif %}
-            
-            {% if u.id != current_user.id %}
-            <form action="{{ url_for('admin_delete_employee', user_id=u.id) }}" method="POST"
-                  onsubmit="return confirm('Permanently delete employee {{ u.profile.full_name if u.profile else u.employee_code }}?');">
-              <button type="submit" class="link-btn" style="color:#dc2626; font-weight:700;">🗑️ Delete</button>
-            </form>
-            {% endif %}
-          </div>
+        <td class="actions">
+          <a class="link-btn" href="{{ url_for('admin_view_employee', user_id=u.id) }}">View</a>
+          <a class="link-btn muted" href="{{ url_for('admin_edit_employee', user_id=u.id) }}">Edit</a>
+          
+          {% if u.is_active %}
+          <form action="{{ url_for('admin_reset_password', user_id=u.id) }}" method="POST" style="margin:0;" onsubmit="return confirm('Generate a new temporary password for {{ u.profile.full_name if u.profile else u.employee_code }}?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="link-btn muted">Reset password</button>
+          </form>
+          <form action="{{ url_for('admin_deactivate_employee', user_id=u.id) }}" method="POST" style="margin:0;" onsubmit="return confirm('Deactivate {{ u.profile.full_name }}?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="link-btn muted">Deactivate</button>
+          </form>
+          {% else %}
+          <form action="{{ url_for('admin_reactivate_employee', user_id=u.id) }}" method="POST" style="margin:0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="link-btn muted">Reactivate</button>
+          </form>
+          {% endif %}
         </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+  <div class="pager">
+    <span>Showing {{ people|length }} records</span>
+    <span id="people-selection-count" aria-live="polite">{{ selected_ids|length }} selected</span>
+    <form id="people-selection-form" method="post" action="{{ url_for('admin_bulk_employee_action') }}" onsubmit="return confirm('Are you sure you want to delete the selected records?');" style="display:flex; align-items:center; gap:8px; margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="delete">
+      {% if current_user.role == 'admin' %}
+      <button type="submit" id="delete-selected-people" class="btn btn-danger" disabled>Delete Selected</button>
+      {% endif %}
+    </form>
   </div>
   {% else %}
-  <div class="empty-state">
-    <div class="sq"></div>
-    {% if q %}No one matched "{{ q }}".{% else %}No employees added yet.{% endif %}
+  <div style="padding:40px; text-align:center; color:var(--text-faint);">
+    {% if q %}No one matched "{{ q }}".{% else %}No employees found.{% endif %}
   </div>
   {% endif %}
 </div>
+{% if people %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const selectAll = document.getElementById("select-all-people");
+  const personCheckboxes = Array.from(document.querySelectorAll(".person-select"));
+  const selectionCount = document.getElementById("people-selection-count");
+  const deleteButton = document.getElementById("delete-selected-people");
+
+  function updateSelection() {
+    const selectedCount = personCheckboxes.filter(function(checkbox) {
+      return checkbox.checked;
+    }).length;
+    selectAll.checked = selectedCount === personCheckboxes.length;
+    selectAll.indeterminate = selectedCount > 0 && selectedCount < personCheckboxes.length;
+    selectionCount.textContent = selectedCount + " selected";
+    if (deleteButton) deleteButton.disabled = selectedCount === 0;
+  }
+
+  selectAll.addEventListener("change", function() {
+    personCheckboxes.forEach(function(checkbox) {
+      checkbox.checked = selectAll.checked;
+    });
+    updateSelection();
+  });
+
+  personCheckboxes.forEach(function(checkbox) {
+    checkbox.addEventListener("change", updateSelection);
+  });
+
+  updateSelection();
+});
+</script>
+{% endif %}
 {% endblock %}
+

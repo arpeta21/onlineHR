@@ -2,8 +2,22 @@ from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
+from time_utils import now_ist
 
 db = SQLAlchemy()
+
+
+class Tenant(db.Model):
+    __tablename__ = "tenants"
+
+    id = db.Column(db.Integer, primary_key=True)
+    company_name = db.Column(db.String(200), nullable=False)
+    tenant_type = db.Column(db.String(30), nullable=False, default="internal")
+    subscription_status = db.Column(db.String(30), nullable=False, default="active")
+    trial_start_date = db.Column(db.DateTime)
+    trial_end_date = db.Column(db.DateTime)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
 
 class User(db.Model, UserMixin):
@@ -15,21 +29,40 @@ class User(db.Model, UserMixin):
     employee_code = db.Column(db.String(20), unique=True, nullable=False)  # e.g. EMP1001
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False, default="employee")  # admin / manager / employee
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     must_change_password = db.Column(db.Boolean, default=True)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
+    failed_login_attempts = db.Column(db.Integer, nullable=False, default=0)
+    locked_until = db.Column(db.DateTime, nullable=True)
+    last_login_at = db.Column(db.DateTime, nullable=True)
+    password_changed_at = db.Column(db.DateTime, nullable=True)
+    password_reset_at = db.Column(db.DateTime, nullable=True)
     created_by_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    deactivated_at = db.Column(db.DateTime, nullable=True)
 
     profile = db.relationship("EmployeeProfile", backref="user", uselist=False,
                                cascade="all, delete-orphan",
                                foreign_keys="EmployeeProfile.user_id")
     created_by = db.relationship("User", remote_side="User.id", foreign_keys=[created_by_id], backref="created_users")
+    tenant = db.relationship("Tenant", backref="users")
 
     def set_password(self, raw):
         self.password_hash = generate_password_hash(raw)
 
     def check_password(self, raw):
         return check_password_hash(self.password_hash, raw)
+
+
+class AuditLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
+    event_type = db.Column(db.String(80), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    target_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    ip_address = db.Column(db.String(64))
+    details = db.Column(db.String(500))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
 
 class EmployeeProfile(db.Model):
@@ -39,6 +72,7 @@ class EmployeeProfile(db.Model):
       - Self-service fields the employee fills in once they log in.
     """
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, unique=True)
 
     # ---- Set by Admin at creation time (read-only to employee) ----
@@ -49,6 +83,7 @@ class EmployeeProfile(db.Model):
     reporting_manager_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     is_founding_member = db.Column(db.Boolean, default=False)
     monthly_ctc = db.Column(db.Float, default=0.0)
+    tax_regime = db.Column(db.String(20), nullable=False, default="new_regime")
 
     # ---- Personal details (filled by employee) ----
     date_of_birth = db.Column(db.Date)
@@ -60,6 +95,8 @@ class EmployeeProfile(db.Model):
     # ---- Identity documents ----
     pan_number = db.Column(db.String(20))
     aadhaar_number = db.Column(db.String(20))
+    pan_document_filename = db.Column(db.String(255))
+    aadhaar_document_filename = db.Column(db.String(255))
 
     # ---- Address ----
     current_address_line1 = db.Column(db.String(200))
@@ -80,6 +117,7 @@ class EmployeeProfile(db.Model):
     bank_ifsc_code = db.Column(db.String(20))
     bank_name = db.Column(db.String(100))
     bank_branch = db.Column(db.String(100))
+    cancelled_cheque_filename = db.Column(db.String(255))
 
     # ---- Previous employment ----
     previous_company_name = db.Column(db.String(150))
@@ -87,6 +125,7 @@ class EmployeeProfile(db.Model):
     previous_employment_from = db.Column(db.Date)
     previous_employment_to = db.Column(db.Date)
     relieving_letter_filename = db.Column(db.String(255))
+    profile_picture_filename = db.Column(db.String(255))
 
     # ---- Emergency / family ----
     emergency_contact_name = db.Column(db.String(150))
@@ -118,6 +157,7 @@ class Child(db.Model):
 class Recognition(db.Model):
     """A public thank-you or good wish shared with a colleague."""
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     sender_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     recipient_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     category = db.Column(db.String(30), nullable=False, default="Appreciation")
@@ -131,6 +171,7 @@ class Recognition(db.Model):
 class ImportantDate(db.Model):
     """An organization-wide date maintained by an administrator."""
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     title = db.Column(db.String(150), nullable=False)
     date = db.Column(db.Date, nullable=False)
     description = db.Column(db.String(500))
@@ -140,6 +181,14 @@ class ImportantDate(db.Model):
     created_by = db.relationship("User", foreign_keys=[created_by_id])
 
 
+class Holiday(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
+    date = db.Column(db.Date, nullable=False, unique=True)
+    name = db.Column(db.String(100), nullable=False)
+    state_code = db.Column(db.String(2), nullable=True)
+
+
 class LeaveType(db.Model):
     """
     Admin-managed leave categories, e.g. Sick Leave (12/yr), Casual Leave (12/yr),
@@ -147,6 +196,7 @@ class LeaveType(db.Model):
     balances per employee per year live in LeaveBalance and are prorated from this.
     """
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     name = db.Column(db.String(50), unique=True, nullable=False)
     annual_quota = db.Column(db.Integer, nullable=False, default=0)
     is_active = db.Column(db.Boolean, default=True)
@@ -162,6 +212,7 @@ class LeaveBalance(db.Model):
     the admin changes a quota / an employee's DOJ.
     """
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     leave_type_id = db.Column(db.Integer, db.ForeignKey("leave_type.id"), nullable=False)
     year = db.Column(db.Integer, nullable=False)
@@ -185,6 +236,7 @@ class LeaveApplication(db.Model):
     approval; admin can also act on any pending request.
     """
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     leave_type_id = db.Column(db.Integer, db.ForeignKey("leave_type.id"), nullable=False)
     start_date = db.Column(db.Date, nullable=False)
@@ -215,8 +267,9 @@ class PayComponent(db.Model):
         Professional Tax (Flat)
     """
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
 
-    name = db.Column(db.String(100), unique=True, nullable=False)
+    name = db.Column(db.String(100), nullable=False)
 
     # earning / deduction
     component_type = db.Column(db.String(20), nullable=False)
@@ -232,20 +285,131 @@ class PayComponent(db.Model):
 
     is_active = db.Column(db.Boolean, default=True)
 
+    # general / old_regime / new_regime
+    tax_regime = db.Column(db.String(30), default="general", nullable=True)
+    statutory_code = db.Column(db.String(30), nullable=True)
+    basis_component_id = db.Column(db.Integer, db.ForeignKey("pay_component.id"), nullable=True)
+    is_employer_cost = db.Column(db.Boolean, default=False)
+    is_in_ctc = db.Column(db.Boolean, default=True)
+
 
 class EmployeeCTC(db.Model):
     """
     Active salary assigned to an employee.
     """
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
 
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
 
     monthly_ctc = db.Column(db.Float, nullable=False)
 
     effective_from = db.Column(db.Date, nullable=False)
+    breakup_mode = db.Column(db.String(20), nullable=False, default="automatic")
+    breakup_status = db.Column(db.String(20), nullable=False, default="draft")
 
     user = db.relationship("User")
+    lines = db.relationship("EmployeeCTCLine", backref="employee_ctc", cascade="all, delete-orphan")
+
+
+class EmployeeCTCLine(db.Model):
+    """Versioned employee-specific CTC breakup approved by HR."""
+    id = db.Column(db.Integer, primary_key=True)
+    employee_ctc_id = db.Column(db.Integer, db.ForeignKey("employee_ctc.id"), nullable=False, index=True)
+    pay_component_id = db.Column(db.Integer, db.ForeignKey("pay_component.id"), nullable=True)
+    component_name = db.Column(db.String(100), nullable=False)
+    component_type = db.Column(db.String(20), nullable=False)
+    statutory_code = db.Column(db.String(30), nullable=True)
+    calc_basis = db.Column(db.String(30), nullable=False, default="flat")
+    calc_value = db.Column(db.Float, nullable=False, default=0.0)
+    monthly_amount = db.Column(db.Float, nullable=False, default=0.0)
+    enabled = db.Column(db.Boolean, nullable=False, default=True)
+    is_hr_override = db.Column(db.Boolean, nullable=False, default=False)
+    is_employer_cost = db.Column(db.Boolean, nullable=False, default=False)
+    is_in_ctc = db.Column(db.Boolean, nullable=False, default=True)
+    basis_component_name = db.Column(db.String(100))
+
+    pay_component = db.relationship("PayComponent")
+
+
+class EmployeePayrollAdjustment(db.Model):
+    """Employee-specific deductions or credits applied to a payroll month."""
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    month = db.Column(db.Integer, nullable=False)
+    year = db.Column(db.Integer, nullable=False)
+    category = db.Column(db.String(50), nullable=False, default="miscellaneous_deduction")
+    description = db.Column(db.String(200), nullable=False)
+    amount = db.Column(db.Float, nullable=False, default=0.0)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    user = db.relationship("User", foreign_keys=[user_id])
+
+
+class SalaryAdvance(db.Model):
+    """Salary advance ledger with an outstanding balance and monthly recovery."""
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    advance_amount = db.Column(db.Float, nullable=False)
+    outstanding_amount = db.Column(db.Float, nullable=False)
+    monthly_repayment = db.Column(db.Float, nullable=False)
+    start_month = db.Column(db.Integer, nullable=False)
+    start_year = db.Column(db.Integer, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="active")
+    description = db.Column(db.String(200))
+    created_by_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    user = db.relationship("User", foreign_keys=[user_id])
+
+
+class GratuityRecord(db.Model):
+    """Computed gratuity settlement awaiting HR review."""
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    date_of_joining = db.Column(db.Date, nullable=True)
+    exit_date = db.Column(db.Date, nullable=False)
+    completed_years = db.Column(db.Integer, nullable=False, default=0)
+    last_drawn_basic_da = db.Column(db.Float, nullable=False, default=0.0)
+    is_eligible = db.Column(db.Boolean, nullable=False, default=False)
+    ineligibility_reason = db.Column(db.String(300), nullable=True)
+    gratuity_amount = db.Column(db.Float, nullable=False, default=0.0)
+    tax_exempt_amount = db.Column(db.Float, nullable=False, default=0.0)
+    taxable_amount = db.Column(db.Float, nullable=False, default=0.0)
+    status = db.Column(db.String(20), nullable=False, default="pending_review")
+    computed_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    approved_by_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    approved_at = db.Column(db.DateTime, nullable=True)
+    paid_at = db.Column(db.DateTime, nullable=True)
+    hr_notes = db.Column(db.String(500), nullable=True)
+
+    user = db.relationship("User", foreign_keys=[user_id])
+    approved_by = db.relationship("User", foreign_keys=[approved_by_id])
+
+
+class InvestmentDeclaration(db.Model):
+    """Employee tax declaration and evidence awaiting HR approval."""
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    financial_year = db.Column(db.String(7), nullable=False)
+    tax_regime = db.Column(db.String(20), nullable=False)
+    section = db.Column(db.String(30), nullable=False)
+    declared_amount = db.Column(db.Float, nullable=False, default=0.0)
+    approved_amount = db.Column(db.Float, nullable=False, default=0.0)
+    document_filename = db.Column(db.String(255))
+    status = db.Column(db.String(20), nullable=False, default="pending")
+    submitted_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    decided_at = db.Column(db.DateTime)
+    decided_by_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    decision_note = db.Column(db.String(500))
+
+    user = db.relationship("User", foreign_keys=[user_id])
+    decided_by = db.relationship("User", foreign_keys=[decided_by_id])
 
 
 class Payslip(db.Model):
@@ -253,6 +417,7 @@ class Payslip(db.Model):
     One payslip per employee per month.
     """
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
 
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
 
@@ -275,6 +440,11 @@ class Payslip(db.Model):
     ot_amount = db.Column(db.Float, default=0.0)
     incentive = db.Column(db.Float, default=0.0)
     pf_deduction = db.Column(db.Float, default=0.0)
+    esi_deduction = db.Column(db.Float, default=0.0)
+    professional_tax = db.Column(db.Float, default=0.0)
+    tds_deduction = db.Column(db.Float, default=0.0)
+    tax_regime = db.Column(db.String(20), default="new_regime")
+    statutory_note = db.Column(db.String(300))
     gratuity_provision = db.Column(db.Float, default=0.0)
 
     generated_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -333,6 +503,7 @@ class Attendance(db.Model):
     Daily attendance records for employees.
     """
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     date = db.Column(db.Date, nullable=False)
     clock_in = db.Column(db.DateTime, nullable=True)
@@ -357,7 +528,7 @@ class Attendance(db.Model):
                 if s.clock_in and s.clock_out:
                     total += (s.clock_out - s.clock_in).total_seconds()
                 elif s.clock_in and not s.clock_out:
-                    total += (datetime.now() - s.clock_in).total_seconds()
+                    total += (now_ist() - s.clock_in).total_seconds()
         elif self.clock_in and self.clock_out:
             total = (self.clock_out - self.clock_in).total_seconds()
         return total
@@ -381,6 +552,7 @@ class AttendanceSession(db.Model):
     Individual clock-in/out session within a single day for outdoor/break tracking.
     """
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     attendance_id = db.Column(db.Integer, db.ForeignKey("attendance.id"), nullable=False)
     clock_in = db.Column(db.DateTime, nullable=False)
     clock_out = db.Column(db.DateTime, nullable=True)
@@ -395,6 +567,7 @@ class SpecialApproval(db.Model):
     Founding members get instant self-approval.
     """
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     approver_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     approval_type = db.Column(db.String(50), nullable=False)  # WFH, On-Duty, Short Leave, Special Clearance
@@ -417,6 +590,7 @@ class PayrollSetting(db.Model):
     Key-value settings for payroll (OT formula parameters, standard workday hours, PF rate, etc.)
     """
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     key = db.Column(db.String(50), unique=True, nullable=False)
     value = db.Column(db.String(200), nullable=False)
 
@@ -427,6 +601,7 @@ class AttendanceRegularization(db.Model):
     Founding members get instant self-approval.
     """
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     approver_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     date = db.Column(db.Date, nullable=False)
@@ -459,6 +634,7 @@ class Appraisal(db.Model):
     Performance appraisal record for Q1 (Sep-Oct) or Q2 (Mar-Apr) for a specified year.
     """
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     evaluator_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     
@@ -528,6 +704,7 @@ class AppraisalKPI(db.Model):
 class HRLetterTemplate(db.Model):
     """Editable master format used when HR issues an employee letter."""
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     letter_type = db.Column(db.String(50), unique=True, nullable=False)
     title = db.Column(db.String(150), nullable=False)
     body = db.Column(db.Text, nullable=False)
@@ -538,6 +715,7 @@ class HRLetterTemplate(db.Model):
 class EmployeeLetter(db.Model):
     """A requested or issued letter belonging to one employee."""
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     employee_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     template_id = db.Column(db.Integer, db.ForeignKey("hr_letter_template.id"), nullable=False)
     subject = db.Column(db.String(200), nullable=False)
@@ -555,6 +733,7 @@ class EmployeeLetter(db.Model):
 class ResourceDocument(db.Model):
     """Published handbook, policy, or form available to all signed-in users."""
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     title = db.Column(db.String(150), nullable=False)
     category = db.Column(db.String(40), nullable=False, default="Policy")
     description = db.Column(db.String(500))
@@ -569,6 +748,7 @@ class ResourceDocument(db.Model):
 class AppraisalMeeting(db.Model):
     """Shared appraisal discussion calendar entry."""
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     title = db.Column(db.String(150), nullable=False)
     scheduled_for = db.Column(db.DateTime, nullable=False)
     location = db.Column(db.String(200))
@@ -584,6 +764,7 @@ class AppraisalMeeting(db.Model):
 class HRMemory(db.Model):
     """Photo and story from an HR-organized event."""
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     title = db.Column(db.String(150), nullable=False)
     event_date = db.Column(db.Date)
     description = db.Column(db.Text)
@@ -604,6 +785,7 @@ class JobRequisition(db.Model):
     Supports multi-level manager hierarchy approval -> Admin final approval.
     """
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     title = db.Column(db.String(200), nullable=False)
     department = db.Column(db.String(100), nullable=False)
     number_of_positions = db.Column(db.Integer, nullable=False, default=1)
@@ -641,6 +823,7 @@ class Candidate(db.Model):
     Includes automated Skill Match % Score and recruitment pipeline status.
     """
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     requisition_id = db.Column(db.Integer, db.ForeignKey("job_requisition.id"), nullable=False)
     
     full_name = db.Column(db.String(150), nullable=False)
@@ -666,12 +849,30 @@ class Candidate(db.Model):
 
     interviews = db.relationship("CandidateInterview", backref="candidate", cascade="all, delete-orphan", order_by="CandidateInterview.id")
 
+    @property
+    def owner_id(self):
+        return self.requisition.requested_by_id if self.requisition else None
+
+
+class CandidateRecruitmentMeta(db.Model):
+    """Recruitment analytics fields kept separate from the candidate profile."""
+    id = db.Column(db.Integer, primary_key=True)
+    candidate_id = db.Column(db.Integer, db.ForeignKey("candidate.id"), nullable=False, unique=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
+    hiring_source = db.Column(db.String(20), nullable=False, default="external")
+    offered_at = db.Column(db.DateTime, nullable=True)
+    recruitment_cost = db.Column(db.Float, nullable=False, default=0.0)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    candidate = db.relationship("Candidate", backref=db.backref("recruitment_meta", uselist=False, cascade="all, delete-orphan"))
+
 
 class CandidateInterview(db.Model):
     """
     Interview schedule slot linked to an interviewer (Manager) with evaluation feedback.
     """
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=True, index=True)
     candidate_id = db.Column(db.Integer, db.ForeignKey("candidate.id"), nullable=False)
     interviewer_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     

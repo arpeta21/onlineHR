@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Holiday Calendar{% endblock %}
+{% block page_title %}Holiday Calendar{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 760px; margin: 0 auto;">
+  <h3>Manage holidays</h3>
+  <form method="post" style="display:flex; gap:12px; flex-wrap:wrap; align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field"><label for="date">Date</label><input type="date" id="date" name="date" required></div>
+    <div class="field"><label for="name">Holiday name</label><input type="text" id="name" name="name" required></div>
+    <div class="field"><label for="state_code">State code (optional)</label><input type="text" id="state_code" name="state_code" maxlength="2" placeholder="MH"></div>
+    <button class="btn btn-primary" type="submit">Add holiday</button>
+  </form>
+  <div class="table-scroll" style="margin-top:24px;">
+    <table class="list"><thead><tr><th>Date</th><th>Name</th><th>State</th><th></th></tr></thead>
+    <tbody>{% for holiday in holidays %}<tr><td>{{ holiday.date.strftime('%d %b %Y') }}</td><td>{{ holiday.name }}</td><td>{{ holiday.state_code or 'All' }}</td><td><form method="post" action="{{ url_for('admin_delete_holiday', holiday_id=holiday.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-danger" type="submit">Delete</button></form></td></tr>{% else %}<tr><td colspan="4">No holidays configured.</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

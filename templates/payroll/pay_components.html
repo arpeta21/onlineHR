@@ -1,18 +1,150 @@
 {% extends "base.html" %} {% block title %}Salary Components{% endblock %} {%
 block page_title %}Salary Components{% endblock %} {% block content %}
+{% include "partials/back_to_payroll.html" %}
 
-<div class="card">
+<div class="card salary-components-page">
   <h3>Salary Components</h3>
 
   <p class="card-sub">
     Configure the salary structure used during payroll calculation.
   </p>
 
+  <div class="card" style="background: #f8fafc; margin: 20px 0;">
+    <h4>Global Automatic CTC Breakup</h4>
+    <p class="card-sub">These defaults apply to all employees without an individual breakup override. Reference CTC is used only to show the monthly proposal, including ESIC eligibility.</p>
+    <form method="post">
+      <label>Reference Monthly CTC</label>
+      <input type="number" name="preview_ctc" value="300000" min="1" step="0.01" class="form-control" style="max-width: 220px;">
+      <br>
+      <table class="list">
+        <thead><tr><th>Enable</th><th>Component</th><th>Type</th><th>Contribution Basis</th><th>Percent / Value</th><th>Proposed Monthly Amount</th></tr></thead>
+        <tbody>
+          {% for item in global_breakup %}
+          <tr>
+            <td><input type="checkbox" name="global_enabled_{{ item.code }}" {% if item.enabled %}checked{% endif %}></td>
+            <td>{{ item.name }} <small>({{ item.code }})</small></td>
+            <td>{{ item.type.title() }}</td>
+            <td>
+              <select name="global_basis_{{ item.code }}">
+                <option value="statutory" {% if item.basis == 'statutory' %}selected{% endif %}>Statutory law</option>
+                <option value="residual" {% if item.basis == 'residual' %}selected{% endif %}>Residual of CTC</option>
+                <option value="percent_ctc" {% if item.basis == 'percent_ctc' %}selected{% endif %}>% of CTC</option>
+                <option value="percent_basic" {% if item.basis == 'percent_basic' %}selected{% endif %}>% of Basic</option>
+                <option value="percent_gross" {% if item.basis == 'percent_gross' %}selected{% endif %}>% of Gross</option>
+                <option value="flat" {% if item.basis == 'flat' %}selected{% endif %}>Flat amount</option>
+              </select>
+            </td>
+            <td><input type="number" name="global_value_{{ item.code }}" value="{{ item.value }}" step="0.01" style="width: 100px;"></td>
+            <td>₹{{ '%.2f'|format(item.amount) }}{% if item.code == 'esic' %} (actual gross/eligibility){% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <br>
+      <button type="submit" class="btn btn-primary">Save Global Breakup Defaults</button>
+    </form>
+  </div>
+
+  <h4>Earnings</h4>
+  {% if earning_components %}
+  <table class="list">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Calculation Basis</th>
+        <th>Value</th>
+        <th>Basic</th>
+        <th>Order</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for c in earning_components %}
+      <tr>
+        <td>{{ c.name }}</td>
+        <td>{{ c.calc_basis.replace("_"," ").title() }}</td>
+        <td>{{ c.calc_value }}</td>
+        <td>{% if c.is_basic %} ✔ {% endif %}</td>
+        <td>{{ c.calc_order }}</td>
+        <td>
+          {% if c.is_active %}
+          <span style="color:green;">Active</span>
+          {% else %}
+          <span style="color:red;">Inactive</span>
+          {% endif %}
+        </td>
+        <td>
+          <a href="{{ url_for('edit_pay_component', component_id=c.id) }}" class="btn btn-outline">
+            Edit
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="card-sub">No earning components configured yet.</p>
+  {% endif %}
+
+  <br />
+
+  <h4>Deductions</h4>
+  {% if deduction_components %}
+  <table class="list">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Tax Regime</th>
+        <th>Calculation Basis</th>
+        <th>Value</th>
+        <th>Order</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for c in deduction_components %}
+      <tr>
+        <td>{{ c.name }}</td>
+        <td>
+          {% if c.tax_regime == 'old_regime' %}Old Regime{% elif c.tax_regime == 'new_regime' %}New Regime{% else %}General{% endif %}
+        </td>
+        <td>{{ c.calc_basis.replace("_"," ").title() }}</td>
+        <td>{{ c.calc_value }}</td>
+        <td>{{ c.calc_order }}</td>
+        <td>
+          {% if c.is_active %}
+          <span style="color:green;">Active</span>
+          {% else %}
+          <span style="color:red;">Inactive</span>
+          {% endif %}
+        </td>
+        <td>
+          <a href="{{ url_for('edit_pay_component', component_id=c.id) }}" class="btn btn-outline">
+            Edit
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="card-sub">No deduction components configured yet. Add PF, ESI, tax, and other deduction items here.</p>
+  {% endif %}
+
+  <br />
+
+  <h4>All Components</h4>
+
   <table class="list">
     <thead>
       <tr>
         <th>Name</th>
         <th>Type</th>
+        <th>Tax Regime</th>
         <th>Calculation Basis</th>
         <th>Value</th>
         <th>Basic</th>
@@ -29,6 +161,10 @@ block page_title %}Salary Components{% endblock %} {% block content %}
         <td>{{ c.name }}</td>
 
         <td>{{ c.component_type.title() }}</td>
+
+        <td>
+          {% if c.tax_regime == 'old_regime' %}Old Regime{% elif c.tax_regime == 'new_regime' %}New Regime{% else %}General{% endif %}
+        </td>
 
         <td>{{ c.calc_basis.replace("_"," ").title() }}</td>
 

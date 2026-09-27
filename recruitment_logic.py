@@ -3,7 +3,24 @@ import re
 import csv
 from io import StringIO
 from datetime import datetime, date
-from models import db, User, EmployeeProfile, JobRequisition, Candidate, CandidateInterview
+from flask_login import current_user
+from models import db, User, EmployeeProfile, JobRequisition, Candidate, CandidateInterview, CandidateRecruitmentMeta, AuditLog
+from time_utils import now_ist
+
+
+def _can_manage_candidate(candidate, allow_manager=False):
+    if not current_user.is_authenticated:
+        return False
+    if current_user.role == "admin":
+        return True
+    owner_id = candidate.requisition.requested_by_id if candidate.requisition else None
+    if candidate.requisition and candidate.requisition.tenant_id != current_user.tenant_id:
+        return False
+    if candidate.tenant_id and candidate.tenant_id != current_user.tenant_id:
+        return False
+    if current_user.role == "demo_admin":
+        return owner_id == current_user.id
+    return allow_manager and current_user.role == "manager" and owner_id == current_user.id
 
 try:
     import pdfplumber
@@ -44,6 +61,18 @@ def extract_text_from_file_path(file_path):
                         text_content += t + "\n"
             except Exception as e:
                 print("PyPDF2 error:", e)
+    elif ext == ".docx":
+        try:
+            from docx import Document
+
+            document = Document(file_path)
+            text_parts = [paragraph.text for paragraph in document.paragraphs if paragraph.text]
+            for table in document.tables:
+                for row in table.rows:
+                    text_parts.extend(cell.text for cell in row.cells if cell.text)
+            text_content = "\n".join(text_parts)
+        except Exception:
+            text_content = ""
 
     if not text_content:
         try:
@@ -55,7 +84,7 @@ def extract_text_from_file_path(file_path):
     return text_content.strip()
 
 
-def calculate_cv_match_score(jd_key_skills, candidate_text_or_skills, candidate_exp=0.0, req_exp=0.0):
+def calculate_cv_text_match_score(jd_key_skills, candidate_text_or_skills, candidate_exp=0.0, req_exp=0.0):
     """
     Fixed & Accurate Match % Score Engine:
     - Skill Match (80% weight): Compares JD skill keywords against Candidate resume text/skills.
@@ -116,6 +145,8 @@ def parse_resume_text_and_match(file_path, filename, requisition_id, raw_pasted_
     req = JobRequisition.query.get(requisition_id)
     if not req:
         return None, False, "Job Requisition not found."
+    if current_user.is_authenticated and current_user.role != "admin" and req.tenant_id != current_user.tenant_id:
+        return None, False, "You are not authorised to screen this requisition."
 
     cv_text = ""
     if file_path:
@@ -147,10 +178,10 @@ def parse_resume_text_and_match(file_path, filename, requisition_id, raw_pasted_
         extracted_name = clean_fn.title() if clean_fn else "Candidate Profile"
 
     if not extracted_name:
-        extracted_name = f"Candidate ({datetime.now().strftime('%d%b')})"
+        extracted_name = f"Candidate ({now_ist().strftime('%d%b')})"
 
     if not extracted_email:
-        extracted_email = f"candidate_{int(datetime.utcnow().timestamp())}@applicant.com"
+        extracted_email = f"candidate_{int(now_ist().timestamp())}@applicant.com"
 
     exp_match = re.search(r'(\d+(?:\.\d+)?)\s*(?:\+|\s*plus)?\s*(?:years?|yrs?)\s*(?:of)?\s*(?:exp|experience)?', cv_text, re.IGNORECASE)
     if exp_match:
@@ -162,6 +193,7 @@ def parse_resume_text_and_match(file_path, filename, requisition_id, raw_pasted_
     match_score = calculate_cv_match_score(jd_skills_text, cv_text or req.key_skills, extracted_exp, req.required_exp_years)
 
     cand = Candidate(
+        tenant_id=req.tenant_id,
         requisition_id=req.id,
         full_name=extracted_name,
         email=extracted_email,
@@ -192,6 +224,10 @@ def create_manpower_requisition(requested_by_id, title, department, number_of_po
     user = User.query.get(requested_by_id)
     if not user:
         return None, False, "User not found."
+    if not current_user.is_authenticated or current_user.id != requested_by_id:
+        return None, False, "You are not authorised to create this requisition."
+    if current_user.role != "admin" and user.tenant_id != current_user.tenant_id:
+        return None, False, "You are not authorised to create this requisition."
 
     reporting_manager_id = user.profile.reporting_manager_id if user.profile else None
 
@@ -205,6 +241,7 @@ def create_manpower_requisition(requested_by_id, title, department, number_of_po
         is_admin_appr = False
 
     req = JobRequisition(
+        tenant_id=user.tenant_id,
         title=title.strip(),
         department=department.strip(),
         number_of_positions=int(number_of_positions or 1),
@@ -241,24 +278,52 @@ def approve_manpower_requisition(requisition_id, approver_id, action="approve", 
     if not approver:
         return None, False, "Approver not found."
 
+    if not current_user.is_authenticated or current_user.id != approver.id:
+        return None, False, "You are not authorised to approve this requisition."
+    if approver.role != "admin" and req.tenant_id != approver.tenant_id:
+        return None, False, "You are not authorised to approve this requisition."
+    if approver.id == req.requested_by_id:
+        return None, False, "The requester cannot approve their own requisition."
+
+    if action == "approve":
+        if approver.role == "admin":
+            if req.status not in {"Pending Admin Approval", "Pending Manager Approval"}:
+                return None, False, "This requisition is not awaiting admin approval."
+        elif approver.id == req.approval_level_1_manager_id:
+            if req.status != "Pending Manager Approval":
+                return None, False, "This requisition is not awaiting manager approval."
+        else:
+            return None, False, "You are not authorised to approve this requisition."
+    elif action == "reject":
+        if approver.role == "admin":
+            if req.status not in {"Pending Admin Approval", "Pending Manager Approval"}:
+                return None, False, "This requisition cannot be rejected in its current status."
+        elif approver.id == req.approval_level_1_manager_id:
+            if req.status != "Pending Manager Approval":
+                return None, False, "This requisition cannot be rejected in its current status."
+        else:
+            return None, False, "You are not authorised to reject this requisition."
+    else:
+        return None, False, "Invalid requisition decision."
+
     if action == "reject":
         req.status = "Rejected"
         req.reason_for_hiring = f"{req.reason_for_hiring or ''} [Rejected by {approver.employee_code}: {rejection_reason or 'No reason provided'}]"
         db.session.commit()
+        db.session.add(AuditLog(event_type="requisition_rejected", user_id=approver.id, target_user_id=req.requested_by_id, details=f"requisition_id={req.id}"))
+        db.session.commit()
         return req, True, f"Requisition '{req.title}' rejected."
 
     # Action is approve
-    if approver.role in ["admin", "demo_admin"]:
+    if approver.role == "admin":
         req.is_admin_approved = True
         req.is_manager_approved = True
         req.status = "Approved"
     elif approver.id == req.approval_level_1_manager_id:
         req.is_manager_approved = True
         req.status = "Pending Admin Approval"
-    else:
-        req.is_manager_approved = True
-        req.status = "Pending Admin Approval"
-
+    db.session.commit()
+    db.session.add(AuditLog(event_type="requisition_approved", user_id=approver.id, target_user_id=req.requested_by_id, details=f"requisition_id={req.id}"))
     db.session.commit()
     return req, True, f"Requisition '{req.title}' approved! Current Status: {req.status}"
 
@@ -300,12 +365,17 @@ def add_and_screen_candidate(requisition_id, full_name, email, phone=None, curre
     req = JobRequisition.query.get(requisition_id)
     if not req:
         return None, False, "Job Requisition not found."
+    if not current_user.is_authenticated:
+        return None, False, "You are not authorised to screen this candidate."
+    if current_user.role != "admin" and req.tenant_id != current_user.tenant_id:
+        return None, False, "You are not authorised to screen this candidate."
 
     score = calculate_cv_match_score(
         req.key_skills, key_skills, float(total_exp_years or 0.0), float(req.required_exp_years or 0.0)
     )
 
     cand = Candidate(
+        tenant_id=req.tenant_id,
         requisition_id=req.id,
         full_name=full_name.strip(),
         email=email.strip().lower(),
@@ -332,6 +402,8 @@ def update_candidate_screening(candidate_id, full_name, email, phone=None, curre
     cand = Candidate.query.get(candidate_id)
     if not cand:
         return None, False, "Candidate not found."
+    if not _can_manage_candidate(cand):
+        return None, False, "You are not authorised to update this candidate."
 
     req = cand.requisition
     score = calculate_cv_match_score(
@@ -358,6 +430,8 @@ def delete_candidate(candidate_id):
     cand = Candidate.query.get(candidate_id)
     if not cand:
         return False, "Candidate record not found."
+    if not _can_manage_candidate(cand):
+        return False, "You are not authorised to delete this candidate."
 
     cand_name = cand.full_name
     db.session.delete(cand)
@@ -372,12 +446,19 @@ def schedule_candidate_interview(candidate_id, interviewer_id, round_name, sched
     cand = Candidate.query.get(candidate_id)
     if not cand:
         return None, False, "Candidate not found."
+    if not _can_manage_candidate(cand, allow_manager=True):
+        return None, False, "You are not authorised to schedule this interview."
 
     interviewer = User.query.get(interviewer_id)
     if not interviewer:
         return None, False, "Interviewer not found."
+    if current_user.role == "manager" and interviewer.id != current_user.id:
+        return None, False, "You are not authorised to schedule this interview."
+    if interviewer.tenant_id != cand.tenant_id:
+        return None, False, "The interviewer and candidate must belong to the same tenant."
 
     interview = CandidateInterview(
+        tenant_id=cand.tenant_id or (cand.requisition.tenant_id if cand.requisition else None),
         candidate_id=cand.id,
         interviewer_id=interviewer.id,
         round_name=round_name,
@@ -400,6 +481,19 @@ def submit_interview_feedback(interview_id, manager_rating, manager_feedback, de
     interview = CandidateInterview.query.get(interview_id)
     if not interview:
         return None, False, "Interview record not found."
+    if not current_user.is_authenticated:
+        return None, False, "You are not authorised to submit interview feedback."
+    if current_user.role != "admin":
+        if (interview.tenant_id != current_user.tenant_id
+                or not interview.candidate
+                or interview.candidate.tenant_id != current_user.tenant_id
+                or not interview.candidate.requisition
+                or interview.candidate.requisition.tenant_id != current_user.tenant_id):
+            return None, False, "You are not authorised to submit interview feedback."
+    if current_user.role == "manager" and interview.interviewer_id != current_user.id:
+        return None, False, "You are not authorised to submit interview feedback."
+    if current_user.role not in {"admin", "manager"}:
+        return None, False, "You are not authorised to submit interview feedback."
 
     cand = interview.candidate
     interview.manager_rating = float(manager_rating) if manager_rating else None
@@ -430,6 +524,8 @@ def issue_candidate_offer(candidate_id, offered_ctc, joining_date, hr_notes=None
     cand = Candidate.query.get(candidate_id)
     if not cand:
         return None, False, "Candidate not found."
+    if not current_user.is_authenticated or current_user.role != "admin":
+        return None, False, "Only the real administrator can issue offers."
 
     if cand.status == "Rejected":
         return None, False, f"Cannot issue offer letter — candidate {cand.full_name} was marked as Rejected by the Manager."
@@ -444,11 +540,21 @@ def issue_candidate_offer(candidate_id, offered_ctc, joining_date, hr_notes=None
     if hr_notes:
         cand.hr_notes = hr_notes.strip()
 
+    meta = cand.recruitment_meta
+    if not meta:
+        meta = CandidateRecruitmentMeta(
+            candidate_id=cand.id,
+            tenant_id=cand.tenant_id,
+            hiring_source="external",
+        )
+        db.session.add(meta)
+    meta.offered_at = now_ist()
+
     db.session.commit()
     return cand, True, f"Offer letter generated & issued to {cand.full_name}! Joining Date set to {cand.joining_date.strftime('%d-%b-%Y')}."
 
 
-def generate_requisitions_csv():
+def generate_requisitions_csv(tenant_id=None):
     """Export all Manpower Requisitions data to downloadable CSV."""
     output = StringIO()
     writer = csv.writer(output)
@@ -459,7 +565,10 @@ def generate_requisitions_csv():
         "Approval Manager", "Status", "Manager Approved", "Admin Approved", "Created Date"
     ])
 
-    reqs = JobRequisition.query.order_by(JobRequisition.id.desc()).all()
+    req_query = JobRequisition.query
+    if tenant_id is not None:
+        req_query = req_query.filter(JobRequisition.tenant_id == tenant_id)
+    reqs = req_query.order_by(JobRequisition.id.desc()).all()
 
     for r in reqs:
         req_by = r.requested_by.profile.full_name if r.requested_by and r.requested_by.profile else r.requested_by.employee_code if r.requested_by else "-"

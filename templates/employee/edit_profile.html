@@ -21,6 +21,7 @@
     <div class="section-title">Personal details</div>
     <div class="section-sub">Basic information about you.</div>
     <div class="grid-2">
+      <div class="field"><label for="profile_picture">Profile picture</label><input type="file" id="profile_picture" name="profile_picture" accept=".png,.jpg,.jpeg,.webp">{% if profile.profile_picture_filename %}<div class="hint"><a href="{{ url_for('download_employee_document', user_id=current_user.id, document_type='profile-picture') }}">Download current picture</a></div>{% endif %}</div>
       <div class="field">
         <label for="date_of_birth">Date of birth</label>
         <input type="date" id="date_of_birth" name="date_of_birth"
@@ -55,12 +56,22 @@
       <div class="field">
         <label for="pan_number">PAN number</label>
         <input type="text" id="pan_number" name="pan_number" placeholder="ABCDE1234F" maxlength="10"
-               value="{{ profile.pan_number or '' }}" style="text-transform:uppercase;">
+           value="{{ decrypt_field(profile.pan_number) if profile.pan_number else '' }}" style="text-transform:uppercase;">
       </div>
       <div class="field">
         <label for="aadhaar_number">Aadhaar number</label>
         <input type="text" id="aadhaar_number" name="aadhaar_number" placeholder="12-digit number" maxlength="14"
-               value="{{ profile.aadhaar_number or '' }}">
+           value="{{ decrypt_field(profile.aadhaar_number) if profile.aadhaar_number else '' }}">
+      </div>
+      <div class="field">
+        <label for="pan_document">PAN card copy</label>
+        <input type="file" id="pan_document" name="pan_document" accept=".pdf,.png,.jpg,.jpeg,.webp">
+        {% if profile.pan_document_filename %}<div class="hint"><a href="{{ url_for('download_employee_document', user_id=current_user.id, document_type='pan') }}">Download current PAN copy</a></div>{% endif %}
+      </div>
+      <div class="field">
+        <label for="aadhaar_document">Aadhaar card copy</label>
+        <input type="file" id="aadhaar_document" name="aadhaar_document" accept=".pdf,.png,.jpg,.jpeg,.webp">
+        {% if profile.aadhaar_document_filename %}<div class="hint"><a href="{{ url_for('download_employee_document', user_id=current_user.id, document_type='aadhaar') }}">Download current Aadhaar copy</a></div>{% endif %}
       </div>
     </div>
 
@@ -78,6 +89,11 @@
       <div class="field">
         <label for="current_city">City</label>
         <input type="text" id="current_city" name="current_city" value="{{ profile.current_city or '' }}">
+      </div>
+      <div class="field">
+        <label for="cancelled_cheque">Bank cancelled cheque</label>
+        <input type="file" id="cancelled_cheque" name="cancelled_cheque" accept=".pdf,.png,.jpg,.jpeg,.webp">
+        {% if profile.cancelled_cheque_filename %}<div class="hint"><a href="{{ url_for('download_employee_document', user_id=current_user.id, document_type='cancelled-cheque') }}">Download current cancelled cheque</a></div>{% endif %}
       </div>
       <div class="field">
         <label for="current_state">State</label>
@@ -126,7 +142,7 @@
     <div class="grid-2">
       <div class="field">
         <label for="bank_account_number">Account number</label>
-        <input type="text" id="bank_account_number" name="bank_account_number" value="{{ profile.bank_account_number or '' }}">
+        <input type="text" id="bank_account_number" name="bank_account_number" value="{{ decrypt_field(profile.bank_account_number) if profile.bank_account_number else '' }}">
       </div>
       <div class="field">
         <label for="bank_ifsc_code">IFSC code</label>

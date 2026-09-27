@@ -4,6 +4,7 @@
 {% block page_title %}Payroll Run & Attendance-Linked Processing{% endblock %}
 
 {% block content %}
+{% include "partials/back_to_payroll.html" %}
 <div class="card" style="margin-bottom: 25px;">
     <h3 style="margin-top: 0; margin-bottom: 10px;">Select Payroll Period</h3>
     <form method="get" action="{{ url_for('generate_payroll') }}" style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
@@ -30,21 +31,27 @@
 </div>
 
 <form method="post" action="{{ url_for('generate_payroll') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="month" value="{{ month }}">
     <input type="hidden" name="year" value="{{ year }}">
     <input type="hidden" name="process_payroll" value="1">
 
     <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 12px; flex-wrap: wrap;">
             <div>
                 <h3 style="margin: 0;">Employee Payroll Processing Inputs — {{ month_name }} {{ year }}</h3>
                 <p style="color: #64748b; font-size: 13px; margin: 4px 0 0 0;">
                     Attendance LOP days and OT hours have been auto-fetched. Add Arrears, Incentives, or Deductions below — <strong>Estimated Net Pay updates live as you type!</strong>
                 </p>
             </div>
-            <button type="submit" class="btn btn-primary" style="padding: 10px 24px; font-weight: 700;">
-                ⚡ Process & Snapshot Payslips
-            </button>
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <a href="{{ url_for('export_payroll_input_sheet', month=month, year=year) }}" class="btn btn-outline" style="padding: 10px 18px; font-weight: 700;">
+                    Download Payroll Input Sheet
+                </a>
+                <button type="submit" class="btn btn-primary" style="padding: 10px 24px; font-weight: 700;">
+                    Process & Snapshot Payslips
+                </button>
+            </div>
         </div>
 
         {% if emp_payroll_inputs %}
@@ -52,15 +59,25 @@
             <table class="list" style="font-size: 13px;">
                 <thead>
                     <tr style="background: #f8fafc;">
-                        <th>Emp ID</th>
+                        <th>Employee Code</th>
                         <th>Name</th>
+                        <th>KYC</th>
+                        <th>Department</th>
+                        <th>Location</th>
+                        <th>Date of Joining</th>
                         <th>Monthly CTC (₹)</th>
                         <th>Payable Days</th>
                         <th>Incentive / Bonus (₹)</th>
                         <th>Arrears (₹)</th>
                         <th>OT Hours</th>
                         <th>Loss of Pay (₹)</th>
-                        <th>PF Deduction (₹)</th>
+                        <th>PF (Auto) (₹)</th>
+                        <th>ESIC Deduction (Auto) (₹)</th>
+                        <th>Tax Deduction - Professional Tax (Auto) (₹)</th>
+                        <th>TDS / Income Tax (Auto) (₹)</th>
+                        <th>Miscellaneous Deduction (₹)</th>
+                        <th>Advance Recovery (₹)</th>
+                        <th>Gratuity Provision (₹)</th>
                         <th style="background: #f0fdf4; color: #166534;">Calculated Net Pay (₹)</th>
                     </tr>
                 </thead>
@@ -68,7 +85,7 @@
                     {% for item in emp_payroll_inputs %}
                     {% set e = item.employee %}
                     {% set s = item.stats %}
-                    <tr id="emp-row-{{ e.id }}" data-ctc="{{ s.monthly_ctc }}" data-ptax="200">
+                    <tr id="emp-row-{{ e.id }}" data-ctc="{{ s.monthly_ctc }}" data-basic="{{ s.calculated_basic }}" data-breakup-gross="{{ s.calculated_gross }}" data-breakup-deductions="{{ s.breakup_deductions }}">
                         <td style="font-weight: 700; color: #0f172a;">{{ e.employee_code }}</td>
                         <td style="font-weight: 600;">
                             {{ e.profile.full_name if e.profile else e.employee_code }}
@@ -76,6 +93,20 @@
                             <span style="font-size: 10px; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 6px;">👑 Founding</span>
                             {% endif %}
                         </td>
+                        <td style="min-width: 180px;">
+                            {% set p = e.profile %}
+                            {% if p %}
+                                <div style="line-height: 1.5;">
+                                    <div><strong>PAN:</strong> {{ mask_sensitive(p.pan_number) if p.pan_number else '—' }}</div>
+                                    <div><strong>Aadhaar:</strong> {{ mask_sensitive(p.aadhaar_number) if p.aadhaar_number else '—' }}</div>
+                                </div>
+                            {% else %}
+                                <span>—</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ e.profile.department if e.profile and e.profile.department else '—' }}</td>
+                        <td>{{ [e.profile.current_city, e.profile.current_state]|select|join(', ') if e.profile else '—' }}</td>
+                        <td>{{ e.profile.date_of_joining.strftime('%d-%b-%Y') if e.profile and e.profile.date_of_joining else '—' }}</td>
                         <td style="font-weight: 600; color: #166534;">₹{{ "{:,.2f}".format(s.monthly_ctc) }}</td>
                         <td>
                             <strong>{{ s.payable_days }}</strong> / {{ s.total_month_days }} days
@@ -93,11 +124,30 @@
                             <input type="number" step="0.01" min="0" name="loss_of_pay_{{ e.id }}" id="loss_of_pay_{{ e.id }}" value="{{ s.auto_lop_amount }}" placeholder="0.00" oninput="recalcRow({{ e.id }})" style="width: 90px; padding: 4px 6px; border-radius: 4px; border: 1px solid #cbd5e1; color: #b91c1c; font-weight: 600;">
                         </td>
                         <td>
-                            <input type="number" step="0.01" min="0" name="pf_deduction_{{ e.id }}" id="pf_deduction_{{ e.id }}" value="{{ s.default_pf }}" oninput="recalcRow({{ e.id }})" style="width: 85px; padding: 4px 6px; border-radius: 4px; border: 1px solid #cbd5e1;">
+                            <input type="number" step="0.01" min="0" name="pf_deduction_{{ e.id }}" id="pf_deduction_{{ e.id }}" value="{{ s.default_pf }}" readonly style="width: 85px; padding: 4px 6px; border-radius: 4px; border: 1px solid #cbd5e1; background: #f1f5f9;">
+                        </td>
+                        <td>
+                            <input type="number" step="0.01" min="0" name="esi_deduction_{{ e.id }}" id="esi_deduction_{{ e.id }}" value="{{ s.default_esi }}" readonly style="width: 90px; padding: 4px 6px; border-radius: 4px; border: 1px solid #cbd5e1; background: #f1f5f9;">
+                        </td>
+                        <td>
+                            <input type="number" step="0.01" min="0" name="tax_deduction_{{ e.id }}" id="tax_deduction_{{ e.id }}" value="{{ s.default_tax }}" readonly style="width: 105px; padding: 4px 6px; border-radius: 4px; border: 1px solid #cbd5e1; background: #f1f5f9;">
+                        </td>
+                        <td>
+                            <input type="number" id="tds_deduction_{{ e.id }}" value="{{ s.default_tds }}" readonly style="width: 105px; padding: 4px 6px; border-radius: 4px; border: 1px solid #cbd5e1; background: #f1f5f9;">
+                        </td>
+                        <td>
+                            <input type="number" step="0.01" min="0" name="additional_deduction_{{ e.id }}" id="additional_deduction_{{ e.id }}" value="0.0" oninput="recalcRow({{ e.id }})" style="width: 105px; padding: 4px 6px; border-radius: 4px; border: 1px solid #cbd5e1; color: #b91c1c;">
+                        </td>
+                        <td>
+                            <input type="number" step="0.01" min="0" name="advance_repayment_{{ e.id }}" id="advance_repayment_{{ e.id }}" value="{{ s.advance_repayment }}" oninput="recalcRow({{ e.id }})" style="width: 105px; padding: 4px 6px; border-radius: 4px; border: 1px solid #cbd5e1; color: #b91c1c;">
+                            <small style="display: block; color: #64748b;">{{ s.tax_regime.replace('_', ' ').title() }} tax</small>
+                        </td>
+                        <td>
+                            <input type="number" step="0.01" min="0" name="gratuity_provision_{{ e.id }}" id="gratuity_provision_{{ e.id }}" value="0.0" placeholder="0.00" oninput="recalcRow({{ e.id }})" style="width: 95px; padding: 4px 6px; border-radius: 4px; border: 1px solid #cbd5e1;">
                         </td>
                         <td style="background: #f0fdf4; vertical-align: middle;">
                             <span id="net_pay_display_{{ e.id }}" style="font-size: 14px; font-weight: 800; color: #15803d;">
-                                ₹{{ "{:,.2f}".format(s.monthly_ctc - s.auto_lop_amount) }}
+                                ₹{{ "{:,.2f}".format(s.calculated_gross + s.auto_ot_amount - s.breakup_deductions - s.default_pf - s.default_esi - s.default_tax - s.default_tds - s.auto_lop_amount - s.advance_repayment) }}
                             </span>
                         </td>
                     </tr>
@@ -117,21 +167,27 @@ function recalcRow(empId) {
     if (!row) return;
 
     const ctc = parseFloat(row.getAttribute('data-ctc')) || 0.0;
-    const ptax = parseFloat(row.getAttribute('data-ptax')) || 200.0;
+    const breakupGross = parseFloat(row.getAttribute('data-breakup-gross')) || ctc;
+    const breakupDeductions = parseFloat(row.getAttribute('data-breakup-deductions')) || 0.0;
 
     const incentive = parseFloat(document.getElementById('incentive_' + empId).value) || 0.0;
     const arrears = parseFloat(document.getElementById('arrears_' + empId).value) || 0.0;
     const otHours = parseFloat(document.getElementById('ot_hours_' + empId).value) || 0.0;
     const lop = parseFloat(document.getElementById('loss_of_pay_' + empId).value) || 0.0;
     const pf = parseFloat(document.getElementById('pf_deduction_' + empId).value) || 0.0;
+    const esi = parseFloat(document.getElementById('esi_deduction_' + empId).value) || 0.0;
+    const tax = parseFloat(document.getElementById('tax_deduction_' + empId).value) || 0.0;
+    const tds = parseFloat(document.getElementById('tds_deduction_' + empId).value) || 0.0;
+    const additional = parseFloat(document.getElementById('additional_deduction_' + empId).value) || 0.0;
+    const advance = parseFloat(document.getElementById('advance_repayment_' + empId).value) || 0.0;
 
-    const basic = ctc * 0.5;
+    const basic = parseFloat(row.getAttribute('data-basic')) || (ctc * 0.5);
     const otHourlyRate = (basic / 208.0) * 1.5;
     const otAmount = otHours * otHourlyRate;
 
-    const totalGross = ctc + arrears + incentive + otAmount;
-    const totalDeductions = pf + ptax + lop;
-    const netPay = Math.max(0, totalGross - totalDeductions);
+    const totalGross = breakupGross + arrears + incentive + otAmount;
+    const totalDeductions = breakupDeductions + pf + esi + tax + tds + additional + advance + lop;
+    const netPay = totalGross - totalDeductions;
 
     const display = document.getElementById('net_pay_display_' + empId);
     if (display) {

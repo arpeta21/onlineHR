@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}CTC Breakup{% endblock %}
+{% block page_title %}Automatic CTC Breakup{% endblock %}
+
+{% block content %}
+{% include "partials/back_to_payroll.html" %}
+<div class="card">
+  <h3>{{ employee.profile.full_name if employee.profile else employee.employee_code }}</h3>
+  <p class="card-sub">Monthly CTC: ₹{{ '%.2f'|format(ctc.monthly_ctc) }}. Automatic proposals can be edited before HR approval.</p>
+  <form method="post">
+    <label>Calculation Mode</label>
+    <select name="breakup_mode" class="form-control">
+      <option value="automatic" {% if ctc.breakup_mode == 'automatic' %}selected{% endif %}>Automatic statutory proposal</option>
+      <option value="manual" {% if ctc.breakup_mode == 'manual' %}selected{% endif %}>Manual HR breakup</option>
+    </select>
+    <br>
+    <table class="list">
+      <thead><tr><th>Enable</th><th>Component</th><th>Type</th><th>Contribution basis</th><th>Percent / Value</th><th>Monthly amount</th><th>Role</th></tr></thead>
+      <tbody>
+        {% for line in ctc.lines %}
+        <tr>
+          <td><input type="checkbox" name="enabled_{{ line.id }}" {% if line.enabled %}checked{% endif %}></td>
+          <td>{{ line.component_name }}{% if line.statutory_code %}<small> ({{ line.statutory_code }})</small>{% endif %}</td>
+          <td>{{ line.component_type.title() }}</td>
+          <td>
+            <select name="basis_{{ line.id }}">
+              <option value="statutory" {% if line.calc_basis == 'statutory' %}selected{% endif %}>Statutory law</option>
+              <option value="residual" {% if line.calc_basis == 'residual' %}selected{% endif %}>Residual of CTC</option>
+              <option value="percent_ctc" {% if line.calc_basis == 'percent_ctc' %}selected{% endif %}>% of CTC</option>
+              <option value="percent_basic" {% if line.calc_basis == 'percent_basic' %}selected{% endif %}>% of Basic</option>
+              <option value="percent_gross" {% if line.calc_basis == 'percent_gross' %}selected{% endif %}>% of Gross</option>
+              <option value="flat" {% if line.calc_basis == 'flat' %}selected{% endif %}>Flat amount</option>
+            </select>
+          </td>
+          <td><input type="number" step="0.01" name="value_{{ line.id }}" value="{{ line.calc_value }}"></td>
+          <td><input type="number" step="0.01" name="amount_{{ line.id }}" value="{{ line.monthly_amount }}" {% if not line.is_hr_override %}readonly{% endif %}></td>
+          <td>{% if line.is_employer_cost %}Employer cost{% else %}Employee payroll{% endif %}</td>
+          <td><label><input type="checkbox" name="override_{{ line.id }}" {% if line.is_hr_override %}checked{% endif %}> Edit amount</label></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <br>
+    <label><input type="checkbox" name="approve_breakup" {% if ctc.breakup_status == 'approved' %}checked{% endif %}> HR approved and ready for payroll</label>
+    <br><br>
+    <button class="btn btn-primary">Save CTC Breakup</button>
+    <a href="{{ url_for('employee_ctc') }}" class="btn btn-outline">Back</a>
+  </form>
+</div>
+{% endblock %}

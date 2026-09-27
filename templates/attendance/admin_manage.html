@@ -1,69 +1,112 @@
 {% extends "base.html" %}
-
 {% block title %}Manage Attendance{% endblock %}
-{% block page_title %}Attendance Management Dashboard{% endblock %}
+{% block page_title %}Attendance{% endblock %}
+{% block page_sub %}Daily attendance across {{ users|length }} people{% endblock %}
 
 {% block content %}
-<div class="card" style="margin-bottom: 20px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
-        <form method="get" action="{{ url_for('admin_attendance') }}" style="display: flex; gap: 15px; align-items: center;">
-            <label style="font-weight: 600;">Select Date:</label>
-            <input type="date" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}" style="padding: 6px 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
-            <button type="submit" class="btn btn-secondary" style="padding: 6px 16px;">View Attendance</button>
-        </form>
-        <a href="{{ url_for('export_attendance_report') }}" class="btn btn-outline" style="font-weight: 600;">📥 Export Attendance Report (CSV)</a>
+<div class="tabs attendance-tabs">
+  <a class="tab active" href="{{ url_for('admin_attendance') }}">Attendance</a>
+  <a class="tab" href="{{ url_for('admin_special_approvals') }}">Special Approvals</a>
+</div>
+<div class="topbar page-toolbar" style="justify-content:space-between; margin-bottom:18px;">
+  <form method="get" action="{{ url_for('admin_attendance') }}" style="display:flex; gap:10px; align-items:center;">
+    <div class="datepick">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      <input type="date" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}" onchange="this.form.submit()" style="border:none; padding:0; background:transparent; font-family:inherit; font-weight:600;">
     </div>
+  </form>
+  <div class="toolbar-actions">
+    <a href="{{ url_for('admin_bulk_attendance') }}" class="btn">Bulk Mark</a>
+    <a href="{{ url_for('export_attendance_report') }}" class="btn">Export Excel</a>
+  </div>
 </div>
 
-<div class="card">
-    <h3 style="margin-top: 0; margin-bottom: 20px;">Attendance Records for {{ selected_date.strftime('%d-%b-%Y (%A)') }}</h3>
+{% set present_count = records_dict.values()|selectattr("status", "==", "Present")|list|length %}
+{% set late_count = records_dict.values()|selectattr("status", "==", "Late")|list|length %}
+{% set half_day_count = records_dict.values()|selectattr("status", "==", "Half Day")|list|length %}
+{% set on_leave_count = records_dict.values()|selectattr("status", "==", "On Leave")|list|length %}
+{% set absent_count = records_dict.values()|selectattr("status", "==", "Absent")|list|length %}
+{% set not_marked_count = users|length - records_dict.values()|list|length %}
 
-    <table class="list">
-        <thead>
-            <tr>
-                <th>Code</th>
-                <th>Employee Name</th>
-                <th>Clock In</th>
-                <th>Clock Out</th>
-                <th>Status</th>
-                <th>Notes</th>
-                <th>Update Attendance</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for u in users %}
-            {% set att = records_dict.get(u.id) %}
-            <tr>
-                <td style="font-weight: 700; color: #0f172a;">{{ u.employee_code }}</td>
-                <td style="font-weight: 600;">{{ u.profile.full_name if u.profile else u.employee_code }}</td>
-                <td>{{ att.clock_in.strftime('%I:%M %p') if att and att.clock_in else '-' }}</td>
-                <td>{{ att.clock_out.strftime('%I:%M %p') if att and att.clock_out else '-' }}</td>
-                <td>
-                    {% if att %}
-                        <span style="font-weight: 700; color: #0284c7;">{{ att.status }}</span>
-                    {% else %}
-                        <span style="color: #94a3b8;">Not Recorded</span>
-                    {% endif %}
-                </td>
-                <td style="font-size: 13px; color: #64748b;">{{ att.notes if att and att.notes else '-' }}</td>
-                <td>
-                    <form method="post" action="{{ url_for('admin_mark_attendance') }}" style="display: flex; gap: 8px; align-items: center;">
-                        <input type="hidden" name="user_id" value="{{ u.id }}">
-                        <input type="hidden" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}">
-                        <select name="status" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 13px;">
-                            <option value="Present" {% if att and att.status == 'Present' %}selected{% endif %}>Present</option>
-                            <option value="Late" {% if att and att.status == 'Late' %}selected{% endif %}>Late</option>
-                            <option value="Half Day" {% if att and att.status == 'Half Day' %}selected{% endif %}>Half Day</option>
-                            <option value="Absent" {% if att and att.status == 'Absent' %}selected{% endif %}>Absent</option>
-                            <option value="On Leave" {% if att and att.status == 'On Leave' %}selected{% endif %}>On Leave</option>
-                        </select>
-                        <input type="text" name="notes" placeholder="Notes" value="{{ att.notes if att else '' }}" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 13px; width: 120px;">
-                        <button type="submit" class="btn btn-primary" style="padding: 4px 10px; font-size: 12px;">Save</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
+<div class="stats" style="grid-template-columns: repeat(5, 1fr);">
+  <div class="stat ok"><div class="lbl">Present</div><div class="val">{{ present_count }}</div></div>
+  <div class="stat warn"><div class="lbl">Late</div><div class="val">{{ late_count }}</div></div>
+  <div class="stat info"><div class="lbl">Half Day</div><div class="val">{{ half_day_count }}</div></div>
+  <div class="stat violet"><div class="lbl">On Leave</div><div class="val">{{ on_leave_count }}</div></div>
+  <div class="stat bad"><div class="lbl">Absent / Not Marked</div><div class="val">{{ absent_count + not_marked_count }}</div></div>
+</div>
+
+<div class="panel">
+  <div class="phead">
+    <h3>Attendance — {{ selected_date.strftime('%d %b %Y') }}</h3>
+    <span class="note">{{ users|length }} people</span>
+  </div>
+  <div class="table-wrap" style="border:none;">
+    <table>
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Clock In</th>
+          <th>Clock Out</th>
+          <th>Status</th>
+          <th>Update</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        {% set att = records_dict.get(u.id) %}
+        <tr>
+          <td>
+            <div class="namecell">
+              <div class="initials">{{ (u.profile.full_name|default('U'))[:2]|upper if u.profile else u.employee_code[:2] }}</div>
+              <div>
+                <div class="name">{{ u.profile.full_name if u.profile else '—' }}</div>
+                <div class="sub">{{ u.employee_code }} · {{ u.profile.department or '—' }}</div>
+              </div>
+            </div>
+          </td>
+          <td class="mono">{{ att.clock_in.strftime('%I:%M %p') if att and att.clock_in else '—' }}</td>
+          <td class="mono">{{ att.clock_out.strftime('%I:%M %p') if att and att.clock_out else '—' }}</td>
+          <td>
+            {% if att %}
+              {% if att.status == 'Present' %}
+                <span class="badge ok"><span class="d"></span>Present</span>
+              {% elif att.status == 'Late' %}
+                <span class="badge warn"><span class="d"></span>Late</span>
+              {% elif att.status == 'Half Day' %}
+                <span class="badge neutral"><span class="d"></span>Half Day</span>
+              {% elif att.status == 'On Leave' %}
+                <span class="badge violet"><span class="d"></span>On Leave</span>
+              {% elif att.status == 'Absent' %}
+                <span class="badge bad"><span class="d"></span>Absent</span>
+              {% else %}
+                <span class="badge neutral">{{ att.status }}</span>
+              {% endif %}
+            {% else %}
+              <span class="badge bad"><span class="d"></span>Not Marked</span>
+            {% endif %}
+          </td>
+          <td>
+            <form method="post" action="{{ url_for('admin_mark_attendance') }}" style="display:flex; gap:6px; align-items:center; margin:0;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="user_id" value="{{ u.id }}">
+              <input type="hidden" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}">
+              <select name="status" style="padding:4px 6px; border-radius:4px; font-size:12px; width:100px;">
+                <option value="Present" {% if att and att.status == 'Present' %}selected{% endif %}>Present</option>
+                <option value="Late" {% if att and att.status == 'Late' %}selected{% endif %}>Late</option>
+                <option value="Half Day" {% if att and att.status == 'Half Day' %}selected{% endif %}>Half Day</option>
+                <option value="Absent" {% if att and att.status == 'Absent' %}selected{% endif %}>Absent</option>
+                <option value="On Leave" {% if att and att.status == 'On Leave' %}selected{% endif %}>On Leave</option>
+              </select>
+              <input type="text" name="notes" placeholder="Notes" value="{{ att.notes if att else '' }}" style="padding:4px 6px; border-radius:4px; font-size:12px; width:100px;">
+              <button type="submit" class="link-btn">Save</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
     </table>
+  </div>
 </div>
 {% endblock %}
+

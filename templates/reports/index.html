@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Reports & CSV Exports{% endblock %}
-{% block page_title %}Reports & CSV Data Exports Dashboard{% endblock %}
+{% block title %}Reports & Excel Exports{% endblock %}
+{% block page_title %}Reports & Excel Exports Dashboard{% endblock %}
 
 {% block content %}
 <div class="card" style="margin-bottom: 25px;">
-    <h3 style="margin-top: 0; margin-bottom: 8px; color: #0f172a;">📊 HRMS Master Reports & CSV Exports Hub</h3>
+    <h3 style="margin-top: 0; margin-bottom: 8px; color: #0f172a;">HRMS Master Reports & Excel Exports Hub</h3>
     <p style="color: #64748b; font-size: 14px; margin-bottom: 0;">
-        Download complete CSV data exports for Employee Profiles, Monthly Attendance, Payroll Payslips, and Performance Appraisals.
+        Download formatted Excel workbooks for Employee Profiles, Monthly Attendance, Payroll Payslips, and Performance Appraisals.
     </p>
 </div>
 
@@ -16,7 +16,7 @@
     <div class="card" style="border-top: 4px solid #2563eb; display: flex; flex-direction: column; justify-content: space-between;">
         <div>
             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                <span style="font-size: 24px;">👥</span>
+                <span style="font-size: 24px;"></span>
                 <h3 style="margin: 0; color: #0f172a;">Employee Master Profile Report</h3>
             </div>
             <p style="color: #64748b; font-size: 13.5px; margin-bottom: 15px;">
@@ -25,7 +25,7 @@
         </div>
         <div>
             <a href="{{ url_for('export_employee_report') }}" class="btn btn-primary" style="font-weight: 700; width: 100%;">
-                📥 Download Employees Master CSV
+                Download Employees Master Excel
             </a>
         </div>
     </div>
@@ -34,7 +34,7 @@
     <div class="card" style="border-top: 4px solid #16a34a; display: flex; flex-direction: column; justify-content: space-between;">
         <div>
             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                <span style="font-size: 24px;">⏱️</span>
+                <span style="font-size: 24px;"></span>
                 <h3 style="margin: 0; color: #0f172a;">Attendance Summary Report</h3>
             </div>
             <p style="color: #64748b; font-size: 13.5px; margin-bottom: 15px;">
@@ -53,7 +53,7 @@
                 <input type="number" name="year" value="{{ current_year }}" style="width: 100px; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 600;">
             </div>
             <button type="submit" class="btn btn-primary" style="background: #16a34a; border-color: #16a34a; font-weight: 700; width: 100%;">
-                📥 Download Attendance CSV
+                Download Attendance Excel
             </button>
         </form>
     </div>
@@ -62,7 +62,7 @@
     <div class="card" style="border-top: 4px solid #0284c7; display: flex; flex-direction: column; justify-content: space-between;">
         <div>
             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                <span style="font-size: 24px;">💰</span>
+                <span style="font-size: 24px;"></span>
                 <h3 style="margin: 0; color: #0f172a;">Payroll & Payslips Report</h3>
             </div>
             <p style="color: #64748b; font-size: 13.5px; margin-bottom: 15px;">
@@ -81,7 +81,7 @@
                 <input type="number" name="year" value="{{ current_year }}" style="width: 100px; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 600;">
             </div>
             <button type="submit" class="btn btn-primary" style="background: #0284c7; border-color: #0284c7; font-weight: 700; width: 100%;">
-                📥 Download Payroll CSV
+                Download Payroll Excel
             </button>
         </form>
     </div>
@@ -90,7 +90,7 @@
     <div class="card" style="border-top: 4px solid #8b5cf6; display: flex; flex-direction: column; justify-content: space-between;">
         <div>
             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                <span style="font-size: 24px;">📈</span>
+                <span style="font-size: 24px;"></span>
                 <h3 style="margin: 0; color: #0f172a;">Performance Appraisals Report</h3>
             </div>
             <p style="color: #64748b; font-size: 13.5px; margin-bottom: 15px;">
@@ -107,7 +107,7 @@
                 <input type="number" name="year" value="{{ current_year }}" style="width: 100px; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 600;">
             </div>
             <button type="submit" class="btn btn-primary" style="background: #8b5cf6; border-color: #8b5cf6; font-weight: 700; width: 100%;">
-                📥 Download Appraisals CSV
+                Download Appraisals Excel
             </button>
         </form>
     </div>

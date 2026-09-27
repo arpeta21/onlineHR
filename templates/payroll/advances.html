@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Salary Advances{% endblock %}
+{% block page_title %}Salary Advances & Deductions{% endblock %}
+
+{% block content %}
+{% include "partials/back_to_payroll.html" %}
+<div class="card">
+  <h3>Record Salary Advance</h3>
+  <p class="card-sub">Active advances are automatically recovered in the payroll input sheet and the balance is reduced after payroll is processed.</p>
+  <form method="post">
+    <label>Employee</label>
+    <select name="user_id" class="form-control" required>
+      {% for employee in employees %}
+      <option value="{{ employee.id }}">{{ employee.employee_code }} - {{ employee.profile.full_name if employee.profile else employee.employee_code }}</option>
+      {% endfor %}
+    </select>
+    <br>
+    <label>Advance Amount</label>
+    <input type="number" name="advance_amount" class="form-control" min="0.01" step="0.01" required>
+    <br>
+    <label>Monthly Repayment</label>
+    <input type="number" name="monthly_repayment" class="form-control" min="0.01" step="0.01" required>
+    <br>
+    <label>Recovery Start Month</label>
+    <input type="number" name="start_month" class="form-control" min="1" max="12" value="{{ now.month if now is defined else 1 }}" required>
+    <br>
+    <label>Recovery Start Year</label>
+    <input type="number" name="start_year" class="form-control" value="2026" required>
+    <br>
+    <label>Description</label>
+    <input type="text" name="description" class="form-control" placeholder="Reason or approval reference">
+    <br>
+    <button class="btn btn-primary">Add Advance</button>
+  </form>
+</div>
+
+<div class="card">
+  <h3>Advance Ledger</h3>
+  <table class="list">
+    <thead>
+      <tr><th>Employee</th><th>Advance</th><th>Outstanding</th><th>Monthly Recovery</th><th>Start</th><th>Status</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      {% for advance in advances %}
+      <tr>
+        <td>{{ advance.user.employee_code }}</td>
+        <td>{{ '%.2f'|format(advance.advance_amount) }}</td>
+        <td>{{ '%.2f'|format(advance.outstanding_amount) }}</td>
+        <td>{{ '%.2f'|format(advance.monthly_repayment) }}</td>
+        <td>{{ advance.start_month }}/{{ advance.start_year }}</td>
+        <td>{{ advance.status.title() }}</td>
+        <td>{{ advance.description or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7">No salary advances recorded.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

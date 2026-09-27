@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="profile-header">
-  <div class="avatar-circle">{{ profile.full_name[0]|upper if profile.full_name else '?' }}</div>
+  {% if profile.profile_picture_filename %}<img class="avatar-circle profile-photo" src="{{ url_for('download_employee_document', user_id=person.id, document_type='profile-picture') }}" alt="{{ profile.full_name }} profile picture">{% else %}<div class="avatar-circle">{{ profile.full_name[0]|upper if profile.full_name else '?' }}</div>{% endif %}
   <div>
     <div class="pname">{{ profile.full_name }}</div>
     <div class="pmeta">
@@ -54,8 +54,10 @@
 <div class="card">
   <h3>Identity documents</h3>
   <div class="profile-grid">
-    <div><div class="pi-label">PAN number</div><div class="pi-value">{{ profile.pan_number or '—' }}</div></div>
-    <div><div class="pi-label">Aadhaar number</div><div class="pi-value">{{ profile.aadhaar_number or '—' }}</div></div>
+    <div><div class="pi-label">PAN number</div><div class="pi-value">{{ mask_sensitive(profile.pan_number) if profile.pan_number else '—' }}</div></div>
+    <div><div class="pi-label">Aadhaar number</div><div class="pi-value">{{ mask_sensitive(profile.aadhaar_number) if profile.aadhaar_number else '—' }}</div></div>
+    <div><div class="pi-label">PAN card copy</div><div class="pi-value">{% if profile.pan_document_filename %}<a href="{{ url_for('download_employee_document', user_id=person.id, document_type='pan') }}">Download</a>{% else %}Not uploaded{% endif %}</div></div>
+    <div><div class="pi-label">Aadhaar card copy</div><div class="pi-value">{% if profile.aadhaar_document_filename %}<a href="{{ url_for('download_employee_document', user_id=person.id, document_type='aadhaar') }}">Download</a>{% else %}Not uploaded{% endif %}</div></div>
   </div>
 </div>
 
@@ -86,10 +88,11 @@
 <div class="card">
   <h3>Bank details</h3>
   <div class="profile-grid">
-    <div><div class="pi-label">Account number</div><div class="pi-value">{{ profile.bank_account_number or '—' }}</div></div>
+    <div><div class="pi-label">Account number</div><div class="pi-value">{{ mask_sensitive(profile.bank_account_number) if profile.bank_account_number else '—' }}</div></div>
     <div><div class="pi-label">IFSC code</div><div class="pi-value">{{ profile.bank_ifsc_code or '—' }}</div></div>
     <div><div class="pi-label">Bank name</div><div class="pi-value">{{ profile.bank_name or '—' }}</div></div>
     <div><div class="pi-label">Branch</div><div class="pi-value">{{ profile.bank_branch or '—' }}</div></div>
+    <div><div class="pi-label">Cancelled cheque</div><div class="pi-value">{% if profile.cancelled_cheque_filename %}<a href="{{ url_for('download_employee_document', user_id=person.id, document_type='cancelled-cheque') }}">Download</a>{% else %}Not uploaded{% endif %}</div></div>
   </div>
 </div>
 
@@ -144,7 +147,9 @@
 {% if viewer == 'admin' %}
 <a href="{{ url_for('admin_edit_employee', user_id=person.id) }}" class="btn btn-primary">Edit details</a>
 <form action="{{ url_for('admin_reset_password', user_id=person.id) }}" method="POST"
-      onsubmit="return confirm('Reset password for {{ person.employee_code }} to the default?');" style="display:inline;">
+      class="reset-password-form" onsubmit="return confirm('Reset the password for {{ person.employee_code }}?');" style="display:inline-flex; gap:8px; align-items:center;">
+  <input type="text" name="temp_password" class="reset-temp-password" placeholder="Optional password" minlength="10" style="width:180px;">
+  <button type="button" class="btn btn-outline generate-reset-password">Generate</button>
   <button type="submit" class="btn btn-outline">Reset password</button>
 </form>
 {% if person.is_active %}
@@ -161,4 +166,16 @@
 {% elif viewer == 'manager' %}
 <a href="{{ url_for('manager_team_list') }}" class="btn btn-outline">Back to my team</a>
 {% endif %}
+<script>
+  document.querySelectorAll('.generate-reset-password').forEach(function (button) {
+    button.addEventListener('click', function () {
+      const input = button.closest('.reset-password-form').querySelector('.reset-temp-password');
+      const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*';
+      const values = new Uint32Array(14);
+      window.crypto.getRandomValues(values);
+      input.value = Array.from(values, value => alphabet[value % alphabet.length]).join('');
+      input.focus();
+    });
+  });
+</script>
 {% endblock %}

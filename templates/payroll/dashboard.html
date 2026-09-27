@@ -1,44 +1,109 @@
-{% extends "base.html" %} {% block title %}Payroll{% endblock %} {% block
-page_title %}Payroll Dashboard{% endblock %} {% block content %}
+{% extends "base.html" %}
+{% block title %}Payroll{% endblock %}
+{% block page_title %}Payroll{% endblock %}
+{% block page_sub %}{{ (latest_period[1]|string + '/' + latest_period[0]|string) if latest_period else 'No payroll processed yet' }} · Finance workspace{% endblock %}
 
-<div class="stat-row">
-  <div class="stat-card">
-    <div class="num">{{ total_components }}</div>
-    <div class="lbl">Salary Components</div>
+{% block content %}
+<div class="page-actions">
+  <div>
+    <span class="eyebrow">PAYROLL CONTROL CENTER</span>
   </div>
-
-  <div class="stat-card">
-    <div class="num">{{ total_ctc }}</div>
-    <div class="lbl">Employee CTC</div>
-  </div>
-
-  <div class="stat-card">
-    <div class="num">{{ total_payslips }}</div>
-    <div class="lbl">Payslips Generated</div>
+  <div class="action-row">
+    <a href="{{ url_for('pay_components') }}" class="btn ghost">Pay Components</a>
+    <a href="{{ url_for('generate_payroll') }}" class="btn">Generate Payroll</a>
   </div>
 </div>
 
-<div class="card">
-  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 15px;">
-    <h3 style="margin: 0;">Payroll Management</h3>
-    <a href="{{ url_for('export_payroll_report') }}" class="btn btn-outline" style="font-weight: 600;">📥 Export Payroll Report (CSV)</a>
-  </div>
+{% if compliance_warnings %}
+<div class="notice notice-warn">
+  <span class="notice-icon">!</span>
+  <div><strong>Review before processing</strong><span>{{ compliance_warnings|join(' ') }}</span></div>
+</div>
+{% else %}
+<div class="notice notice-ok">
+  <span class="notice-icon">&#10003;</span>
+  <div><strong>Payroll controls are ready</strong><span>FY statutory rates and professional tax checks are configured.</span></div>
+</div>
+{% endif %}
 
-  <p class="card-sub">
-    Configure salary structure, employee CTC and generate monthly payroll.
-  </p>
-
-  <br />
-
-  <a href="{{ url_for('pay_components') }}" class="btn btn-primary">
-    Salary Components
-  </a>
+<div class="stats payroll-stats">
+  <div class="stat"><div class="lbl">CTC Disbursed</div><div class="val">₹{{ "{:,.0f}".format(latest_ctc_disbursed) }}</div><div class="delta">Latest processed period</div></div>
+  <div class="stat info"><div class="lbl">Gross Pay</div><div class="val">₹{{ "{:,.0f}".format(latest_gross_pay) }}</div><div class="delta">Before deductions</div></div>
+  <div class="stat bad"><div class="lbl">Total Deductions</div><div class="val">₹{{ "{:,.0f}".format(latest_deductions) }}</div><div class="delta">PF, tax and adjustments</div></div>
+  <div class="stat ok"><div class="lbl">Net Pay</div><div class="val">₹{{ "{:,.0f}".format(latest_net_pay) }}</div><div class="delta">Employee take-home</div></div>
+  <div class="stat"><div class="lbl">Payslips Generated</div><div class="val">{{ total_payslips }}</div><div class="delta">{{ total_components }} active components</div></div>
 </div>
 
-<a href="{{ url_for('employee_ctc') }}" class="btn btn-primary">
-  Employee CTC
-</a>
-<a href="{{ url_for('generate_payroll') }}" class="btn btn-primary">
-  Generate Payroll
-</a>
+<div class="grid2 payroll-chart-grid">
+  <section class="panel chart-panel">
+    <div class="phead"><div><span class="eyebrow">PAYROLL TREND</span><h3>Monthly disbursed cost</h3></div><span class="note">Last 12 periods</span></div>
+    {% if monthly_disbursed %}
+    <div class="payroll-mini-chart" aria-label="Monthly disbursed cost chart">
+      {% for item in monthly_disbursed %}
+      <div class="payroll-mini-column">
+        <span class="payroll-mini-value">₹{{ "{:,.0f}".format(item.amount) }}</span>
+        <div class="payroll-mini-track"><i style="height: {{ (item.amount / max_monthly_disbursed * 100) if max_monthly_disbursed else 0 }}%;"></i></div>
+        <small>{{ item.label }}</small>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="chart-empty">No processed payroll data is available for the monthly trend yet.</div>
+    {% endif %}
+  </section>
+  <section class="panel chart-panel">
+    <div class="phead"><div><span class="eyebrow">COST ALLOCATION</span><h3>Cost by department</h3></div><span class="note">Latest period</span></div>
+    <div class="chart-box"><canvas id="departmentCostChart"></canvas></div>
+  </section>
+</div>
+
+<section class="table-wrap payroll-table">
+  <div class="table-head">
+    <div><span class="eyebrow">LATEST PERIOD</span><h3>Payslip register</h3></div>
+    <div class="action-row"><a class="link-btn" href="{{ url_for('admin_payslip_list') }}">View all payslips</a><a class="btn ghost btn-small" href="{{ url_for('export_payroll_report') }}">Export Excel</a></div>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Employee</th><th>Department</th><th class="num">Gross Pay</th><th class="num">Deductions</th><th class="num">Net Pay</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      {% for payslip in recent_payslips %}
+        <tr>
+          <td><div class="namecell"><div class="initials">{{ (payslip.user.profile.full_name if payslip.user and payslip.user.profile else payslip.user.employee_code if payslip.user else 'U')[:2]|upper }}</div><div><div class="name">{{ payslip.user.profile.full_name if payslip.user and payslip.user.profile else payslip.user.employee_code if payslip.user else 'Unknown' }}</div><div class="sub code">{{ payslip.user.employee_code if payslip.user else '-' }}</div></div></div></td>
+          <td>{{ payslip.user.profile.department if payslip.user and payslip.user.profile and payslip.user.profile.department else 'Unassigned' }}</td>
+          <td class="num">₹{{ "{:,.0f}".format(payslip.gross_pay or 0) }}</td>
+          <td class="num">₹{{ "{:,.0f}".format(payslip.total_deductions or 0) }}</td>
+          <td class="num strong">₹{{ "{:,.0f}".format(payslip.net_pay or 0) }}</td>
+          <td><span class="badge ok"><span class="d"></span>Processed</span></td>
+          <td><a class="link-btn" href="{{ url_for('view_payslip', payslip_id=payslip.id) }}">View</a></td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7" class="empty-state">No payslips have been generated yet.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<div class="payroll-quick-links">
+  <a href="{{ url_for('employee_ctc') }}" class="quick-link"><span class="quick-link-icon">₹</span><span><strong>Employee CTC</strong><small>Review salary structures</small></span><span class="quick-arrow">→</span></a>
+  <a href="{{ url_for('payroll_advances') }}" class="quick-link"><span class="quick-link-icon">↗</span><span><strong>Advances &amp; deductions</strong><small>Manage employee adjustments</small></span><span class="quick-arrow">→</span></a>
+  <a href="{{ url_for('admin_investment_declarations') }}" class="quick-link"><span class="quick-link-icon">▣</span><span><strong>Investment declarations</strong><small>Review tax proofs</small></span><span class="quick-arrow">→</span></a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const colors = { brand: '#1e3a5f', teal: '#0d9488', grid: '#eef0f2', text: '#6b7280' };
+  Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+  Chart.defaults.color = colors.text;
+  Chart.defaults.font.size = 11;
+  const deptLabels = [{% for label, amount in department_costs %}{{ label|tojson }}{% if not loop.last %},{% endif %}{% endfor %}];
+  const deptValues = [{% for label, amount in department_costs %}{{ amount }}{% if not loop.last %},{% endif %}{% endfor %}];
+  new Chart(document.getElementById('departmentCostChart'), {
+    type: 'bar', data: {labels: deptLabels, datasets: [{data: deptValues, backgroundColor: colors.teal, borderRadius: 5, maxBarThickness: 30}]},
+    options: {plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => '₹' + Number(c.parsed.y).toLocaleString()}}}, scales: {y: {grid: {color: colors.grid}, beginAtZero: true, ticks: {callback: value => '₹' + Number(value).toLocaleString()}}, x: {grid: {display: false}}}, maintainAspectRatio: false}
+  });
+});
+</script>
 {% endblock %}

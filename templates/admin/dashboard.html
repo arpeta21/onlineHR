@@ -1,100 +1,90 @@
-{% extends "base.html" %} {% block title %}Overview{% endblock %} {% block
-page_title %}Admin overview{% endblock %} {% block content %}
-<div class="stat-row">
-  <div class="stat-card">
-    <div class="num">{{ total_employees }}</div>
-    <div class="lbl">Employees</div>
+{% extends "base.html" %} 
+{% block title %}Admin Dashboard{% endblock %} 
+{% block page_title %}Dashboard{% endblock %}
+{% block page_sub %}Consolidated Admin View{% endblock %}
+
+{% block content %}
+<div class="stats">
+  <div class="stat"><div class="lbl">Active Headcount</div><div class="val">{{ active_headcount }}</div><div class="delta up">+ {{ new_joiners }} new this month</div></div>
+  <div class="stat"><div class="lbl">Attendance Today</div><div class="val">{{ '%.1f'|format(attendance_rate) }}%</div><div class="delta">{{ attendance_marked }} / {{ active_headcount }} marked</div></div>
+  <div class="stat"><div class="lbl">Pending Approvals</div><div class="val">{{ pending_leaves }}</div><div class="delta warn">Leave requests</div></div>
+  <div class="stat"><div class="lbl">Open Positions</div><div class="val">{{ open_positions }}</div><div class="delta warn">Active requisitions</div></div>
+  <div class="stat"><div class="lbl">Attrition (MTD)</div><div class="val">{{ exits }}</div><div class="delta bad">{{ '%.1f'|format(attrition_rate) }}% of headcount</div></div>
+  <div class="stat info"><div class="lbl">Appraisal KRA Approved</div><div class="val">{{ appraisal_kra_approved }}</div><div class="delta">of {{ appraisal_total }} total</div></div>
+  <div class="stat ok"><div class="lbl">Appraisal Completed</div><div class="val">{{ appraisal_completed }}</div><div class="delta up">of {{ appraisal_total }} total</div></div>
+  <div class="stat"><div class="lbl">Avg. Leave Balance</div><div class="val">--</div><div class="delta">Per employee</div></div>
+</div>
+
+<div class="grid2">
+  <div class="panel">
+    <div class="phead"><h3>Attendance Today</h3><span class="note">{{ today_attendance_count }} records</span></div>
+    <div class="chart-box sm"><canvas id="attendanceStatusChart"></canvas></div>
   </div>
-  <div class="stat-card">
-    <div class="num">{{ total_managers }}</div>
-    <div class="lbl">Managers</div>
-  </div>
-  <div class="stat-card">
-    <div class="num">{{ completed }}</div>
-    <div class="lbl">Profiles completed</div>
-  </div>
-  <div class="stat-card">
-    <div class="num">{{ pending }}</div>
-    <div class="lbl">Profiles pending</div>
-  </div>
-  <div class="stat-card">
-    <a
-      href="{{ url_for('admin_leave_requests') }}"
-      style="text-decoration: none; color: inherit; display: block"
-    >
-      <div class="num">{{ pending_leaves }}</div>
-      <div class="lbl">Leave requests pending</div>
-    </a>
+  <div class="panel">
+    <div class="phead"><h3>Headcount by Department</h3><span class="note">{{ active_headcount }} active</span></div>
+    <div class="chart-box sm"><canvas id="departmentChart"></canvas></div>
   </div>
 </div>
 
-{% include "partials/overview_culture.html" %}
-
-<div class="card">
-  <h3>Policy assistant</h3>
-  <p class="card-sub">Search the uploaded employee handbook and policy documents from the overview page.</p>
-  <form method="get" action="{{ url_for('hr_resources', tab='resources') }}">
-    <div class="search-row">
-      <input type="text" name="q" placeholder="Ask a policy question, e.g. leave approval" required>
-      <button class="btn btn-primary" type="submit">Quick answer</button>
-    </div>
-  </form>
-</div>
-
-<div class="card">
-  <h3>Recently added</h3>
-  <p class="card-sub">The newest people added to the Sanvit HR Portal.</p>
-
-  {% if recent %}
-  <table class="list">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Employee ID</th>
-        <th>Role</th>
-        <th>Status</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for u in recent %}
-      <tr>
-        <td>{{ u.profile.full_name if u.profile else '—' }}</td>
-        <td>{{ u.employee_code }}</td>
-        <td><span class="badge badge-{{ u.role }}">{{ u.role }}</span></td>
-        <td>
-          {% if u.profile and u.profile.profile_completed %}
-          <span class="badge badge-complete">Complete</span>
-          {% else %}
-          <span class="badge badge-pending">Pending</span>
-          {% endif %}
-        </td>
-        <td>
-          <a href="{{ url_for('admin_view_employee', user_id=u.id) }}">View</a>
-        </td>
-      </tr>
+<div class="grid2">
+  <div class="panel">
+    <div class="phead"><h3>Recently Added</h3><span class="note">{{ recent_added|length }} people</span></div>
+    {% if recent_added %}
+      {% for person in recent_added[:4] %}
+      <div class="row-item">
+        <div class="who2">
+          <div class="initials">{{ (person.profile.full_name|default('U'))[:2]|upper if person.profile else person.employee_code[:2] }}</div>
+          <div>
+            <div style="font-weight:600">{{ person.profile.full_name if person.profile else person.employee_code }}</div>
+            <div class="meta">{{ person.profile.designation|default('Employee') }} · Joined {{ person.profile.date_of_joining.strftime('%d %b %Y') if person.profile.date_of_joining else 'Unknown' }}</div>
+          </div>
+        </div>
+      </div>
       {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <div class="empty-state">
-    <div class="sq"></div>
-    No employees yet. Add your first one to get started.
+    {% else %}
+      <p style="color:var(--text-faint); font-size:12px;">No recent joiners.</p>
+    {% endif %}
   </div>
-  {% endif %}
+  
+  <div class="panel">
+    <div class="phead"><h3>Appraisal Cycle</h3><span class="note">{{ appraisal_total }} in cycle</span></div>
+    <div class="comp-item"><span>KRA Approved</span><span class="badge info"><span class="d"></span>{{ appraisal_kra_approved }}</span></div>
+    <div class="comp-item"><span>Completed</span><span class="badge ok"><span class="d"></span>{{ appraisal_completed }}</span></div>
+    <div class="comp-item"><span>Remaining</span><span class="badge neutral"><span class="d"></span>{{ appraisal_total - appraisal_completed }}</span></div>
+  </div>
 </div>
 
-<div style="margin-top: 20px">
-  <a href="{{ url_for('admin_create_employee') }}" class="btn btn-primary">
-    Add Employee
-  </a>
-
-  <a href="{{ url_for('admin_leave_requests') }}" class="btn btn-outline">
-    Review Leave Requests
-  </a>
-
-  <a href="{{ url_for('payroll_dashboard') }}" class="btn btn-success">
-    Payroll
-  </a>
-</div>
+<div class="panel">
+    <div class="phead"><h3>Statutory Compliance Checks</h3><span class="note">Overview</span></div>
+    <div class="comp-item"><span>Profile Health</span><span class="badge {{ 'ok' if completed_pct == 100 else 'warn' }}"><span class="d"></span>{{ completed }} / {{ completed + pending }} complete</span></div>
+    <div class="comp-item"><span>Manager Split</span><span class="badge info"><span class="d"></span>{{ total_managers }} / {{ total_employees + total_managers }} managers</span></div>
+  </div>
+  {% include "partials/overview_culture.html" %}
 {% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  Chart.defaults.font.family = "'Inter',system-ui,sans-serif";
+  Chart.defaults.color = '#6b7280';
+  Chart.defaults.font.size = 11.5;
+  const grid = {color:'#eef0f2'};
+  const attendanceLabels = [{% for label, count in attendance_status_counts %}{{ (label ~ ' (' ~ count|string ~ ')')|tojson }}{% if not loop.last %},{% endif %}{% endfor %}];
+  const attendanceValues = [{% for label, count in attendance_status_counts %}{{ count }}{% if not loop.last %},{% endif %}{% endfor %}];
+  const departmentLabels = [{% for label, count in department_counts %}{{ label|tojson }}{% if not loop.last %},{% endif %}{% endfor %}];
+  const departmentValues = [{% for label, count in department_counts %}{{ count }}{% if not loop.last %},{% endif %}{% endfor %}];
+
+  new Chart(document.getElementById('attendanceStatusChart'), {
+    type: 'doughnut',
+    data: {labels: attendanceLabels, datasets: [{data: attendanceValues, backgroundColor: ['#059669', '#2563eb', '#b45309', '#dc2626'], borderWidth: 0}]},
+    options: {plugins: {legend: {position: 'bottom', labels: {boxWidth: 8, usePointStyle: true}}}, cutout: '68%', maintainAspectRatio: false}
+  });
+  new Chart(document.getElementById('departmentChart'), {
+    type: 'bar',
+    data: {labels: departmentLabels, datasets: [{data: departmentValues, backgroundColor: '#1e3a5f', borderRadius: 5, maxBarThickness: 30}]},
+    options: {plugins: {legend: {display: false}}, scales: {y: {grid, beginAtZero: true, ticks: {stepSize: 1, precision: 0}}, x: {grid: {display: false}}}, maintainAspectRatio: false}
+  });
+});
+</script>
+{% endblock %}
+

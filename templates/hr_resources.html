@@ -36,7 +36,7 @@
     {% if current_user.role in ['admin', 'demo_admin'] %}
     <div class="card admin-resource-card"><div class="section-heading"><div><span class="eyebrow">HR desk</span><h3>Issue a letter</h3></div><span class="section-icon">✓</span></div>
       <form method="post" action="{{ url_for('issue_hr_letter') }}">
-        <div class="field"><label for="employee_id">Employee</label><select id="employee_id" name="employee_id" required><option value="">Choose employee</option>{% for employee in employees %}<option value="{{ employee.id }}">{{ employee.profile.full_name }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="employee_id">Employee</label><select id="employee_id" name="employee_id" required><option value="">Choose employee</option>{% for employee in employees %}<option value="{{ employee.id }}">{{ employee.profile.full_name }} ({{ employee.employee_code }})</option>{% endfor %}</select></div>
         <div class="field"><label for="issue_template_id">Format</label><select id="issue_template_id" name="template_id" required>{% for template in templates %}<option value="{{ template.id }}">{{ template.title }}{% if template.hr_only %} · HR only{% endif %}</option>{% endfor %}</select></div>
         <div class="field"><label for="issue_subject">Subject</label><input id="issue_subject" name="subject" placeholder="Letter subject"></div>
         <div class="field"><label for="issue_details">Letter details</label><textarea id="issue_details" name="details" rows="4" placeholder="Effective date, revised role, terms, or other particulars..."></textarea></div>

@@ -73,23 +73,17 @@ python app.py
 
 The app runs at `http://127.0.0.1:5000`.
 
-On first run it creates a default admin account:
-
-- **Employee ID:** `ADMIN001`
-- **Password:** `Admin@123`
-
-You'll be forced to set a new password on first login.
+On first run, the admin password is supplied through `ADMIN_INITIAL_PASSWORD`
+or generated securely. It is never stored as a default credential in code.
 
 ## Notes
 
-- Data is stored in `instance/hrms.db` (SQLite) — created automatically.
-- Uploaded relieving letters are stored in `static/uploads/`.
+- SQLite is suitable for development only. Use PostgreSQL in production.
+- Uploaded documents use private storage; configure `UPLOAD_DIR` for a persistent disk or object storage.
 - Employee IDs are auto-generated sequentially as `EMP1001`, `EMP1002`, ...
-- Admin can reset anyone's password back to the default (`Welcome@123`),
-  which forces that person to set a new one on their next login.
-- This is a development setup (Flask's built-in server). For real deployment,
-  run it behind a production WSGI server (e.g. gunicorn) and change
-  `SECRET_KEY` in `app.py`.
+- Admin resets generate one-time temporary passwords and force a password change.
+- Production requires `SECRET_KEY`, `DATA_ENCRYPTION_KEY`, PostgreSQL, and Redis for multi-worker rate limiting.
+- Back up the database and encryption key separately, and test staging before production.
 
 ## Project structure
 

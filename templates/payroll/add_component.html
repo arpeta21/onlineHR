@@ -4,6 +4,7 @@
 {% block page_title %}Add Salary Component{% endblock %}
 
 {% block content %}
+{% include "partials/back_to_payroll.html" %}
 
 <div class="card">
 
@@ -36,6 +37,20 @@
 
         <br>
 
+        <label>Tax Regime</label>
+
+        <select name="tax_regime" class="form-control">
+
+            <option value="general">General</option>
+
+            <option value="old_regime">Old Regime</option>
+
+            <option value="new_regime">New Regime</option>
+
+        </select>
+
+        <br>
+
         <label>Calculation Basis</label>
 
         <select name="calc_basis" class="form-control">
@@ -48,6 +63,26 @@
 
             <option value="percent_gross">Percentage of Gross</option>
 
+            <option value="residual">Residual of CTC</option>
+
+            <option value="statutory">Statutory Law</option>
+
+        </select>
+
+        <br>
+
+        <label>Statutory Code (optional)</label>
+        <select name="statutory_code" class="form-control">
+            <option value="">Custom component</option>
+            <option value="basic">Basic</option>
+            <option value="hra">HRA</option>
+            <option value="special_allowance">Special Allowance</option>
+            <option value="pf">PF</option>
+            <option value="vpf">VPF</option>
+            <option value="esic">ESIC</option>
+            <option value="professional_tax">Professional Tax</option>
+            <option value="tds">TDS</option>
+            <option value="superannuation">Superannuation</option>
         </select>
 
         <br>

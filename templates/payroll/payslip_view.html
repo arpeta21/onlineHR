@@ -4,6 +4,7 @@
 {% block page_title %}Payslip - {{ payslip.month_label() }}{% endblock %}
 
 {% block content %}
+{% include "partials/back_to_payroll.html" %}
 <div class="payslip-container" style="background: #ffffff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 850px; margin: 0 auto;">
     
     <!-- Action Bar -->
@@ -11,7 +12,7 @@
         <h3 style="margin: 0; color: #1e293b;">Salary Slip</h3>
         <div>
             <button onclick="window.print()" class="btn btn-secondary" style="margin-right: 10px; padding: 8px 16px;">🖨️ Print</button>
-            <a href="{{ url_for('download_payslip_pdf', payslip_id=payslip.id) }}" class="btn btn-primary" style="padding: 8px 16px; text-decoration: none;">📥 Download PDF</a>
+            <a href="{{ url_for('download_payslip_pdf', payslip_id=payslip.id) }}" class="btn btn-primary" style="padding: 8px 16px; text-decoration: none;">Download PDF</a>
         </div>
     </div>
 
@@ -40,13 +41,13 @@
                 <td style="padding: 6px; font-weight: 600; color: #475569;">Date of Joining:</td>
                 <td style="padding: 6px; color: #1e293b;">{{ payslip.user.profile.date_of_joining.strftime('%d-%b-%Y') if payslip.user.profile and payslip.user.profile.date_of_joining else '-' }}</td>
                 <td style="padding: 6px; font-weight: 600; color: #475569;">PAN Number:</td>
-                <td style="padding: 6px; color: #1e293b;">{{ payslip.user.profile.pan_number if payslip.user.profile else '-' }}</td>
+                <td style="padding: 6px; color: #1e293b;">{{ mask_sensitive(payslip.user.profile.pan_number) if payslip.user.profile and payslip.user.profile.pan_number else '-' }}</td>
             </tr>
             <tr>
                 <td style="padding: 6px; font-weight: 600; color: #475569;">Bank Account:</td>
-                <td style="padding: 6px; color: #1e293b;">{{ payslip.user.profile.bank_account_number if payslip.user.profile else '-' }}</td>
+                <td style="padding: 6px; color: #1e293b;">{{ mask_sensitive(payslip.user.profile.bank_account_number) if payslip.user.profile and payslip.user.profile.bank_account_number else '-' }}</td>
                 <td style="padding: 6px; font-weight: 600; color: #475569;">IFSC Code:</td>
-                <td style="padding: 6px; color: #1e293b;">{{ payslip.user.profile.bank_ifsc_code if payslip.user.profile else '-' }}</td>
+                <td style="padding: 6px; color: #1e293b;">{{ payslip.user.profile.bank_ifsc_code if payslip.user.profile and payslip.user.profile.bank_ifsc_code else '-' }}</td>
             </tr>
         </table>
     </div>

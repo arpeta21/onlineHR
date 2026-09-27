@@ -1,17 +1,41 @@
-<div class="overview-grid">
+<div class="overview-grid overview-culture-grid">
   <div class="card culture-card">
-    <div class="section-heading"><div><span class="eyebrow">Coming up</span><h3>Birthdays</h3></div><span class="section-icon">🎂</span></div>
-    {% if upcoming_birthdays %}<div class="culture-list">{% for person in upcoming_birthdays %}<div class="culture-item"><div class="avatar avatar-blue">{{ person.profile.full_name[:1]|upper }}</div><div><strong>{{ person.profile.full_name }}</strong><span>{{ person.profile.date_of_birth.strftime('%d %b') }}{% if loop.first %} · next up{% endif %}</span></div></div>{% endfor %}</div>
-    {% else %}<p class="muted">Birthdays will appear as people complete their profiles.</p>{% endif %}
+    <div class="section-heading"><div><span class="eyebrow">Next 31 days</span><h3>Birthdays</h3></div><span class="section-icon">♣</span></div>
+    {% if upcoming_birthdays %}
+      <div class="culture-list">
+      {% for person in upcoming_birthdays %}
+        <div class="culture-item"><div class="avatar avatar-blue">{{ person.profile.full_name[:1]|upper }}</div><div><strong>{{ person.profile.full_name }}</strong><span>{{ person.profile.date_of_birth.strftime('%d %b') }}{% if loop.first %} · next up{% endif %}</span></div></div>
+      {% endfor %}
+      </div>
+    {% else %}<p class="muted">No birthdays in the next 31 days.</p>{% endif %}
   </div>
+
   <div class="card culture-card">
-    <div class="section-heading"><div><span class="eyebrow">Stay in the loop</span><h3>Important dates</h3></div><span class="section-icon">📅</span></div>
-    {% if upcoming_dates %}<div class="culture-list">{% for item in upcoming_dates %}<div class="culture-item date-item"><div class="date-tile"><b>{{ item.date.strftime('%d') }}</b><span>{{ item.date.strftime('%b') }}</span></div><div><strong>{{ item.title }}</strong><span>{{ item.description or 'Company calendar' }}</span></div></div>{% endfor %}</div>
-    {% else %}<p class="muted">No important dates have been added yet.</p>{% endif %}
+    <div class="section-heading"><div><span class="eyebrow">Next 31 days</span><h3>Important dates</h3></div><span class="section-icon">◆</span></div>
+    {% if upcoming_dates %}
+      <div class="culture-list">
+      {% for item in upcoming_dates %}
+        <div class="culture-item date-item"><div class="date-tile"><b>{{ item.date.strftime('%d') }}</b><span>{{ item.date.strftime('%b') }}</span></div><div><strong>{{ item.title }}</strong><span>{{ item.description or 'Company calendar' }}</span></div></div>
+      {% endfor %}
+      </div>
+    {% else %}<p class="muted">No important dates in the next 31 days.</p>{% endif %}
+  </div>
+
+  <div class="card culture-card">
+    <div class="section-heading"><div><span class="eyebrow">Last 24 hours</span><h3>Team appreciation</h3></div><span class="section-icon">♡</span></div>
+    {% if recent_recognitions %}
+      <div class="recognition-feed">
+      {% for recognition in recent_recognitions[:3] %}
+        <div class="recognition-quote"><p>{{ recognition.message }}</p><small><strong>{{ recognition.sender.profile.full_name if recognition.sender and recognition.sender.profile else 'Former colleague' }}</strong> to <strong>{{ recognition.recipient.profile.full_name if recognition.recipient and recognition.recipient.profile else 'Team' }}</strong></small></div>
+      {% endfor %}
+      </div>
+    {% else %}<p class="muted">No appreciation shared in the last 24 hours.</p>{% endif %}
+    <a href="{{ url_for('community') }}" class="btn btn-outline btn-sm culture-action">Give a wish</a>
   </div>
 </div>
-<div class="card recognition-strip">
-  <div class="section-heading"><div><span class="eyebrow">Team appreciation</span><h3>Good things people are saying</h3></div><a href="{{ url_for('community') }}" class="btn btn-outline btn-sm">Give a wish</a></div>
-  {% if recent_recognitions %}<div class="recognition-feed">{% for recognition in recent_recognitions[:3] %}<div class="recognition-quote"><span class="quote-mark">“</span><p>{{ recognition.message }}</p><small><strong>{{ recognition.sender.profile.full_name }}</strong> to <strong>{{ recognition.recipient.profile.full_name }}</strong> · {{ recognition.category }}</small></div>{% endfor %}</div>
-  {% else %}<p class="muted">Be the first to celebrate a helpful teammate.</p>{% endif %}
+
+<div class="card timeline-update-card">
+  <span class="eyebrow">Employee data</span>
+  <strong>Last updated</strong>
+  <span>{{ latest_employee_update.strftime('%d %b %Y at %I:%M %p') if latest_employee_update else 'No profile updates recorded yet' }}</span>
 </div>

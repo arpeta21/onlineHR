@@ -3,10 +3,14 @@
 {% block page_title %}Team leave requests{% endblock %}
 
 {% block content %}
-<div style="display:flex; gap:8px; margin-bottom: 18px;">
+<div class="tabs leave-tabs">
+  <a class="tab active" href="{{ url_for('manager_leave_requests') }}">Team Leaves</a>
+  <a class="tab" href="{{ url_for('manager_special_approvals') }}">Special Approvals</a>
+</div>
+<div class="tabs leave-tabs">
   {% for s, label in [('pending','Pending'), ('approved','Approved'), ('rejected','Rejected'), ('all','All')] %}
     <a href="{{ url_for('manager_leave_requests', status=s) }}"
-       class="btn btn-sm {{ 'btn-primary' if status_filter == s else 'btn-outline' }}">{{ label }}</a>
+       class="tab {{ 'active' if status_filter == s else '' }}">{{ label }}</a>
   {% endfor %}
 </div>
 

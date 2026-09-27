@@ -3,6 +3,17 @@
 {% block page_title %}Welcome, {{ profile.full_name.split(' ')[0] if profile else '' }}{% endblock %}
 
 {% block content %}
+<div class="overview-page">
+<div class="dashboard-hero">
+  <div>
+    <div class="eyebrow">EMPLOYEE PORTAL</div>
+    <h1>Welcome, {{ profile.full_name.split(' ')[0] if profile else '' }}</h1>
+    <p>Your workspace for profile, attendance, leave and payslips.</p>
+  </div>
+  <div class="dashboard-actions">
+    <a href="{{ url_for('employee_edit_profile') }}" class="btn btn-primary">{{ 'Edit profile' if profile.profile_completed else 'Complete profile' }}</a>
+  </div>
+</div>
 {% if not profile.profile_completed %}
 <div class="help-banner">
   Your administrator has set up your employee ID and joining details. Please complete the rest
@@ -14,18 +25,7 @@
 
 {% include "partials/overview_culture.html" %}
 
-<div class="card">
-  <h3>Policy assistant</h3>
-  <p class="card-sub">Ask HR policy questions and get the closest matched document instantly.</p>
-  <form method="get" action="{{ url_for('hr_resources', tab='resources') }}">
-    <div class="search-row">
-      <input type="text" name="q" placeholder="Search for leave, attendance, or reimbursement policies" required>
-      <button class="btn btn-primary" type="submit">Quick answer</button>
-    </div>
-  </form>
-</div>
-
-<div class="card">
+<div class="card dashboard-card">
   <h3>Your details so far</h3>
   <p class="card-sub">Set by your administrator — read-only.</p>
   <div class="profile-grid">
@@ -56,12 +56,12 @@
   </div>
 </div>
 
-<a href="{{ url_for('employee_edit_profile') }}" class="btn btn-primary">
-  {{ 'Edit my profile' if profile.profile_completed else 'Complete my profile' }}
-</a>
-<a href="{{ url_for('employee_view_own_profile') }}" class="btn btn-outline">View full profile</a>
-<a href="{{ url_for('attendance_index') }}" class="btn btn-outline">⏱️ Attendance</a>
-<a href="{{ url_for('my_leaves') }}" class="btn btn-outline">🌴 My leaves</a>
-<a href="{{ url_for('employee_payslips') }}" class="btn btn-outline">💰 My payslips</a>
-<a href="{{ url_for('appraisals_index') }}" class="btn btn-outline">⭐ Appraisals</a>
+<div class="quick-actions">
+  <a href="{{ url_for('employee_view_own_profile') }}" class="btn btn-outline">View full profile</a>
+  <a href="{{ url_for('attendance_index') }}" class="btn btn-outline">Attendance</a>
+  <a href="{{ url_for('my_leaves') }}" class="btn btn-outline">My leaves</a>
+  <a href="{{ url_for('employee_payslips') }}" class="btn btn-outline">My payslips</a>
+  <a href="{{ url_for('appraisals_index') }}" class="btn btn-outline">Appraisals</a>
+</div>
+</div>
 {% endblock %}

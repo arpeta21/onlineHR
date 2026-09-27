@@ -3,6 +3,10 @@
 {% block page_title %}My leaves{% endblock %}
 
 {% block content %}
+<div class="tabs leave-tabs">
+  <a class="tab active" href="{{ url_for('my_leaves') }}">My Leaves</a>
+  <a class="tab" href="{{ url_for('special_approvals_index') }}">Special Approvals</a>
+</div>
 {% if not_yet_joined %}
   <div class="card">
     {% if joining_date %}

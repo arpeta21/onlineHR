@@ -39,4 +39,45 @@
     <a href="{{ url_for('my_leaves') }}" class="btn btn-outline">Cancel</a>
   </form>
 </div>
+
+<div class="card leave-holiday-card" id="holiday-calendar">
+  <div class="section-heading"><div><span class="eyebrow">Holiday calendar</span><h3>{{ employee_state or 'Company' }} holidays</h3></div><span class="holiday-legend">Highlighted dates are holidays</span></div>
+  <div class="holiday-calendar-toolbar"><button type="button" class="btn btn-outline btn-sm" id="holiday-prev">Previous</button><strong id="holiday-month-label"></strong><button type="button" class="btn btn-outline btn-sm" id="holiday-next">Next</button></div>
+  <div class="holiday-weekdays"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+  <div class="holiday-days" id="holiday-days"></div>
+  <div class="holiday-list" id="holiday-list"></div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const holidays = {{ holiday_calendar|tojson }};
+  const byDate = Object.fromEntries(holidays.map(item => [item.date, item]));
+  const days = document.getElementById('holiday-days');
+  const label = document.getElementById('holiday-month-label');
+  const list = document.getElementById('holiday-list');
+  let cursor = new Date();
+  cursor.setDate(1);
+  function iso(date) { return date.toISOString().slice(0, 10); }
+  function render() {
+    const year = cursor.getFullYear();
+    const month = cursor.getMonth();
+    label.textContent = cursor.toLocaleDateString(undefined, {month: 'long', year: 'numeric'});
+    days.innerHTML = '';
+    const firstDay = (new Date(year, month, 1).getDay() + 6) % 7;
+    const count = new Date(year, month + 1, 0).getDate();
+    for (let i = 0; i < firstDay; i += 1) days.appendChild(document.createElement('span'));
+    for (let number = 1; number <= count; number += 1) {
+      const date = new Date(year, month, number);
+      const key = iso(date);
+      const cell = document.createElement('span');
+      cell.textContent = number;
+      if (byDate[key]) { cell.className = 'holiday-day'; cell.title = byDate[key].name; }
+      days.appendChild(cell);
+    }
+    list.innerHTML = holidays.filter(item => item.date.slice(0, 7) === `${year}-${String(month + 1).padStart(2, '0')}`).map(item => `<span><strong>${item.date.slice(-2)}</strong> ${item.name}</span>`).join('') || '<small>No configured holidays this month.</small>';
+  }
+  document.getElementById('holiday-prev').addEventListener('click', () => { cursor.setMonth(cursor.getMonth() - 1); render(); });
+  document.getElementById('holiday-next').addEventListener('click', () => { cursor.setMonth(cursor.getMonth() + 1); render(); });
+  render();
+});
+</script>
 {% endblock %}

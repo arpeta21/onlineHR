@@ -1,5 +1,6 @@
 import os
 import re
+from pathlib import Path
 from collections import Counter
 
 try:
@@ -25,9 +26,17 @@ except Exception:  # pragma: no cover - optional dependency
 
 UPLOAD_FOLDER = os.path.join(
     os.path.abspath(os.path.dirname(__file__)),
-    "static",
+    "instance",
     "uploads",
 )
+def safe_document_path(filename):
+    if not filename or Path(filename).name != filename:
+        raise ValueError("Invalid document path")
+    upload_root = Path(UPLOAD_FOLDER).resolve()
+    candidate = (upload_root / filename).resolve()
+    if upload_root not in candidate.parents:
+        raise ValueError("Invalid document path")
+    return candidate
 
 
 def _normalize_text(value):
@@ -123,7 +132,10 @@ def _read_uploaded_document_text(filename):
     if not filename:
         return ""
 
-    file_path = os.path.join(UPLOAD_FOLDER, filename)
+    try:
+        file_path = safe_document_path(filename)
+    except ValueError:
+        return ""
     if not os.path.exists(file_path):
         return ""
 
@@ -351,11 +363,52 @@ def build_people_analytics(rating_rows, attendance_rows, location_rows):
     if rating_rows:
         avg_rating = sum(float(getattr(row, "rating", 0) or 0) for row in rating_rows) / len(rating_rows)
 
-    rating_distribution = {
-        "Outstanding": sum(1 for row in rating_rows if (getattr(row, "rating", 0) or 0) >= 4.5),
-        "Good": sum(1 for row in rating_rows if 3.5 <= (getattr(row, "rating", 0) or 0) < 4.5),
-        "Needs attention": sum(1 for row in rating_rows if (getattr(row, "rating", 0) or 0) < 3.5),
+    rating_labels = {
+        5: "Excellent",
+        4: "Outstanding",
+        3: "Good",
+        2: "Average",
+        1: "Poor",
     }
+
+    def rating_band(value):
+        try:
+            numeric = float(value or 0)
+        except (TypeError, ValueError):
+            return None
+        return int(numeric) if numeric in {1.0, 2.0, 3.0, 4.0, 5.0} else None
+
+    rating_distribution = {
+        label: sum(1 for row in rating_rows if rating_band(getattr(row, "rating", 0)) == score)
+        for score, label in rating_labels.items()
+    }
+    rating_scale = []
+    for score, label in rating_labels.items():
+        rating_scale.append({
+            "score": score,
+            "label": label,
+            "self_count": sum(1 for row in rating_rows if rating_band(getattr(row, "self_rating", 0)) == score),
+            "manager_count": sum(1 for row in rating_rows if rating_band(getattr(row, "rating", 0)) == score),
+            "potential_count": sum(1 for row in rating_rows if rating_band(getattr(row, "potential_rating", 0)) == score),
+        })
+    radar_max = max(
+        (max(item["self_count"], item["manager_count"], item["potential_count"]) for item in rating_scale),
+        default=1,
+    )
+    radar_vertices = [(50, 8), (90, 35), (75, 85), (25, 85), (10, 35)]
+
+    def radar_points(attribute):
+        points = []
+        for item, (vertex_x, vertex_y) in zip(rating_scale, radar_vertices):
+            ratio = (item[attribute] / radar_max) if radar_max else 0
+            points.append((round(50 + (vertex_x - 50) * ratio, 2), round(50 + (vertex_y - 50) * ratio, 2)))
+        return " ".join(f"{x}% {y}%" for x, y in points)
+
+    radar_series = [
+        {"label": "Self", "points": radar_points("self_count"), "class_name": "radar-self"},
+        {"label": "Manager", "points": radar_points("manager_count"), "class_name": "radar-manager"},
+        {"label": "Potential", "points": radar_points("potential_count"), "class_name": "radar-potential"},
+    ]
 
     most_common_status = None
     if attendance_rows:
@@ -435,7 +488,7 @@ def build_people_analytics(rating_rows, attendance_rows, location_rows):
         predictive_points.append(f"{location_leader} is emerging as the main workforce concentration, which helps forecast office capacity and local support planning.")
 
     prescriptive_points = []
-    if rating_distribution.get("Needs attention", 0):
+    if rating_distribution.get("Poor", 0) or rating_distribution.get("Average", 0):
         prescriptive_points.append("Prioritize coaching and manager follow-ups for employees in the low-rating group to reduce underperformance risk.")
     if most_common_status and most_common_status.lower() in {"late", "absent", "leave"}:
         prescriptive_points.append("Introduce attendance nudges, reminder workflows, and manager check-ins to address recurring delay or absence patterns.")
@@ -450,6 +503,8 @@ def build_people_analytics(rating_rows, attendance_rows, location_rows):
         "top_rated_employee": getattr(top_rated, "employee_name", "No data") if top_rated else "No data",
         "average_rating": round(avg_rating, 2),
         "rating_distribution": rating_distribution,
+        "rating_scale": rating_scale,
+        "radar_series": radar_series,
         "attendance_top_status": most_common_status or "No data",
         "location_leader": location_leader or "No data",
         "department_breakdown": department_breakdown,

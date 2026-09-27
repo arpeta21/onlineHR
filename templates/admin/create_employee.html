@@ -9,7 +9,7 @@
   details, family details, and their relieving letter.
 </div>
 
-<div class="card" style="max-width: 640px;">
+<div class="card admin-form-card">
   <div style="margin-bottom: 18px; padding: 12px 14px; border: 1px solid #dbeafe; background: #eff6ff; border-radius: 10px;">
     <strong>Need to add many employees at once?</strong>
     <div style="margin-top: 8px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
@@ -18,10 +18,15 @@
     </div>
   </div>
 
-  <form method="POST">
+  <form method="POST" enctype="multipart/form-data">
     <div class="field">
       <label for="full_name">Full name</label>
       <input type="text" id="full_name" name="full_name" required value="{{ form.full_name or ('Demo Admin' if form.role == 'demo_admin' else '') }}">
+    </div>
+    <div class="field">
+      <label for="profile_picture">Profile picture</label>
+      <input type="file" id="profile_picture" name="profile_picture" accept=".png,.jpg,.jpeg,.webp">
+      <div class="hint">Optional. JPG, PNG or WEBP.</div>
     </div>
 
     <div class="grid-2">
@@ -82,8 +87,11 @@
 
     <div class="field">
       <label for="temp_password">Temporary password</label>
-      <input type="text" id="temp_password" name="temp_password" placeholder="Welcome@123 (default)">
-      <div class="hint">The employee must change this on first login. Leave blank to use the default.</div>
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <input type="text" id="temp_password" name="temp_password" placeholder="Enter or generate a temporary password" style="flex:1; min-width:240px;">
+        <button type="button" class="btn btn-outline" id="generate-password">Generate password</button>
+      </div>
+      <div class="hint">The employee must change this on first login. Leave blank to generate a strong random temporary password.</div>
     </div>
 
     <button type="submit" class="btn btn-primary">Create employee</button>
@@ -95,7 +103,21 @@
   document.addEventListener('DOMContentLoaded', function () {
     const roleSelect = document.getElementById('role');
     const nameInput = document.getElementById('full_name');
+    const passwordInput = document.getElementById('temp_password');
+    const generatePasswordButton = document.getElementById('generate-password');
     if (!roleSelect || !nameInput) return;
+
+    if (passwordInput && generatePasswordButton) {
+      generatePasswordButton.addEventListener('click', function () {
+        const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*';
+        const values = new Uint32Array(14);
+        window.crypto.getRandomValues(values);
+        let password = Array.from(values, value => alphabet[value % alphabet.length]).join('');
+        password = 'A' + password.slice(1, 10) + '7!';
+        passwordInput.value = password;
+        passwordInput.focus();
+      });
+    }
 
     const applyDemoAdminName = () => {
       if (roleSelect.value === 'demo_admin' && (!nameInput.value.trim() || nameInput.value.trim() === 'Employee')) {
@@ -108,7 +130,7 @@
   });
 </script>
 
-<div class="card" style="max-width: 640px; margin-top: 24px;">
+<div class="card admin-form-card admin-form-card-secondary">
   <h3 style="margin-top: 0;">Bulk upload employees</h3>
   <p style="margin: 0 0 14px; color: #475569;">Upload a CSV or Excel file containing employee data. This creates multiple employee records in one go.</p>
   <form method="POST" action="{{ url_for('admin_bulk_import_employees') }}" enctype="multipart/form-data">

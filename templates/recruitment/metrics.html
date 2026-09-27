@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Recruitment Metrics{% endblock %}
+{% block page_title %}Recruitment Metrics{% endblock %}
+{% block page_sub %}Hiring funnel, efficiency, and manpower budget{% endblock %}
+
+{% block content %}
+<div class="recruitment-subpage">
+<div class="tabs recruitment-tabs">
+  <a class="tab" href="{{ url_for('recruitment_dashboard') }}">Pipeline</a>
+  <a class="tab active" href="{{ url_for('recruitment_metrics') }}">Metrics &amp; Budget</a>
+  <a class="tab" href="{{ url_for('cv_screener') }}">CV Screener</a>
+  <a class="tab" href="{{ url_for('interviews_calendar') }}">Interviews</a>
+  <a class="tab" href="{{ url_for('create_requisition') }}">Manpower Requisition</a>
+</div>
+
+<div class="stats recruitment-metric-stats">
+  <div class="stat info"><div class="lbl">Time to Fill</div><div class="val">{{ metrics.time_to_fill }}d</div><div class="delta">Requisition to joining</div></div>
+  <div class="stat"><div class="lbl">Time to Offer</div><div class="val">{{ metrics.time_to_offer }}d</div><div class="delta">Application to offer</div></div>
+  <div class="stat ok"><div class="lbl">Offer to Joining</div><div class="val">{{ metrics.offer_to_join_ratio }}%</div><div class="delta">{{ metrics.offer_to_join }}d average gap</div></div>
+  <div class="stat bad"><div class="lbl">Cost per Hire</div><div class="val">₹{{ "{:,.1f}".format(metrics.cost_per_hire) }}L</div><div class="delta">Recorded recruitment cost</div></div>
+  <div class="stat"><div class="lbl">Positions Planned</div><div class="val">{{ metrics.positions_planned }}</div><div class="delta">{{ metrics.positions_approved }} approved</div></div>
+</div>
+
+<div class="grid2">
+  <section class="panel">
+    <div class="phead"><div><span class="eyebrow">HIRING MIX</span><h3>Internal vs external hiring</h3></div><span class="note">Joined candidates</span></div>
+    <div class="recruitment-mix-row"><span>Internal hires</span><div class="recruitment-meter"><i style="width:{{ (metrics.internal_hires / (metrics.internal_hires + metrics.external_hires) * 100) if (metrics.internal_hires + metrics.external_hires) else 0 }}%;background:var(--teal);"></i></div><strong>{{ metrics.internal_hires }}</strong></div>
+    <div class="recruitment-mix-row"><span>External hires</span><div class="recruitment-meter"><i style="width:{{ (metrics.external_hires / (metrics.internal_hires + metrics.external_hires) * 100) if (metrics.internal_hires + metrics.external_hires) else 0 }}%;background:var(--accent);"></i></div><strong>{{ metrics.external_hires }}</strong></div>
+    <div class="recruitment-cost-split"><div><small>Internal cost</small><strong>₹{{ "{:,.1f}".format(metrics.internal_cost) }}L</strong></div><div><small>External cost</small><strong>₹{{ "{:,.1f}".format(metrics.external_cost) }}L</strong></div></div>
+  </section>
+  <section class="panel">
+    <div class="phead"><div><span class="eyebrow">MANPOWER BUDGET</span><h3>Planned recruitment spend</h3></div><span class="note">Linked to requisitions</span></div>
+    <div class="budget-summary"><div><small>Planned budget</small><strong>₹{{ "{:,.1f}".format(metrics.planned_budget) }}L</strong></div><div><small>Approved budget</small><strong>₹{{ "{:,.1f}".format(metrics.approved_budget) }}L</strong></div></div>
+    <p class="card-sub">Every requisition increases planned positions and budget automatically using its target CTC range and number of positions.</p>
+  </section>
+</div>
+
+<section class="table-wrap">
+  <div class="table-head"><div><span class="eyebrow">REQUISITION BUDGET REGISTER</span><h3>Manpower budget by position</h3></div><a class="link-btn" href="{{ url_for('create_requisition') }}">Raise requisition</a></div>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Requisition</th><th>Department</th><th>Status</th><th class="num">Positions</th><th class="num">Target CTC</th><th class="num">Planned Budget</th></tr></thead>
+      <tbody>
+      {% for row in budget_rows %}
+      <tr><td><strong>REQ-{{ "%03d"|format(row.requisition.id) }}</strong><div class="sub">{{ row.requisition.title }}</div></td><td>{{ row.requisition.department }}</td><td><span class="badge {{ 'ok' if row.requisition.status == 'Approved' else 'warn' if 'Pending' in row.requisition.status else 'bad' }}"><span class="d"></span>{{ row.requisition.status }}</span></td><td class="num">{{ row.requisition.number_of_positions }}</td><td class="num">₹{{ "{:,.1f}".format(row.requisition.target_ctc_max or row.requisition.target_ctc_min or 0) }}L</td><td class="num strong">₹{{ "{:,.1f}".format(row.planned_budget) }}L</td></tr>
+      {% else %}<tr><td colspan="6" class="empty-state">No manpower requisitions have been raised yet.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+ </div>
+{% endblock %}

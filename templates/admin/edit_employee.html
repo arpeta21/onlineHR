@@ -10,7 +10,7 @@
 </div>
 
 <div class="card" style="max-width: 640px;">
-  <form method="POST">
+  <form method="POST" enctype="multipart/form-data">
     <div class="grid-2">
       <div class="field">
         <label for="full_name">Full name</label>
@@ -23,6 +23,34 @@
                value="{{ form.employee_code if form else user.employee_code }}">
         <div class="hint">This is their login ID — changing it changes how they sign in.</div>
       </div>
+    </div>
+
+    <h3 class="section-title">Employee data (HR can complete this on their behalf)</h3>
+    <div class="grid-2">
+      <div class="field"><label for="profile_picture">Profile picture</label><input type="file" id="profile_picture" name="profile_picture" accept=".png,.jpg,.jpeg,.webp">{% if user.profile.profile_picture_filename %}<div class="hint"><a href="{{ url_for('download_employee_document', user_id=user.id, document_type='profile-picture') }}">Download current picture</a></div>{% endif %}</div>
+      <div class="field"><label for="date_of_birth">Date of birth</label><input type="date" id="date_of_birth" name="date_of_birth" value="{{ form.date_of_birth if form else (user.profile.date_of_birth.isoformat() if user.profile.date_of_birth else '') }}"></div>
+      <div class="field"><label for="gender">Gender</label><select id="gender" name="gender"><option value="">— Select —</option><option value="male" {% if (form.gender if form else user.profile.gender) == 'male' %}selected{% endif %}>Male</option><option value="female" {% if (form.gender if form else user.profile.gender) == 'female' %}selected{% endif %}>Female</option><option value="other" {% if (form.gender if form else user.profile.gender) == 'other' %}selected{% endif %}>Other</option></select></div>
+      <div class="field"><label for="personal_email">Personal email</label><input type="email" id="personal_email" name="personal_email" value="{{ form.personal_email if form else (user.profile.personal_email or '') }}"></div>
+      <div class="field"><label for="phone_number">Phone number</label><input type="tel" id="phone_number" name="phone_number" value="{{ form.phone_number if form else (user.profile.phone_number or '') }}"></div>
+      <div class="field"><label for="blood_group">Blood group</label><input type="text" id="blood_group" name="blood_group" value="{{ form.blood_group if form else (user.profile.blood_group or '') }}"></div>
+      <div class="field"><label for="current_state">Current state</label><input type="text" id="current_state" name="current_state" value="{{ form.current_state if form else (user.profile.current_state or '') }}"></div>
+      <div class="field"><label for="pan_number">PAN</label><input type="text" id="pan_number" name="pan_number" maxlength="10" value="{{ form.pan_number if form else '' }}" placeholder="ABCDE1234F"></div>
+      <div class="field"><label for="aadhaar_number">Aadhaar</label><input type="text" id="aadhaar_number" name="aadhaar_number" maxlength="12" value="{{ form.aadhaar_number if form else '' }}" placeholder="12 digit number"></div>
+      <div class="field"><label for="pan_document">PAN card copy</label><input type="file" id="pan_document" name="pan_document" accept=".pdf,.png,.jpg,.jpeg,.webp">{% if user.profile.pan_document_filename %}<div class="hint"><a href="{{ url_for('download_employee_document', user_id=user.id, document_type='pan') }}">Download current PAN copy</a></div>{% endif %}</div>
+      <div class="field"><label for="aadhaar_document">Aadhaar card copy</label><input type="file" id="aadhaar_document" name="aadhaar_document" accept=".pdf,.png,.jpg,.jpeg,.webp">{% if user.profile.aadhaar_document_filename %}<div class="hint"><a href="{{ url_for('download_employee_document', user_id=user.id, document_type='aadhaar') }}">Download current Aadhaar copy</a></div>{% endif %}</div>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label for="current_address_line1">Current address</label><input type="text" id="current_address_line1" name="current_address_line1" value="{{ form.current_address_line1 if form else (user.profile.current_address_line1 or '') }}"></div>
+      <div class="field"><label for="current_city">City</label><input type="text" id="current_city" name="current_city" value="{{ form.current_city if form else (user.profile.current_city or '') }}"></div>
+      <div class="field"><label for="current_address_line2">Address line 2</label><input type="text" id="current_address_line2" name="current_address_line2" value="{{ form.current_address_line2 if form else (user.profile.current_address_line2 or '') }}"></div>
+      <div class="field"><label for="current_pincode">Pincode</label><input type="text" id="current_pincode" name="current_pincode" value="{{ form.current_pincode if form else (user.profile.current_pincode or '') }}"></div>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label for="bank_account_number">Bank account</label><input type="text" id="bank_account_number" name="bank_account_number" value="{{ form.bank_account_number if form else '' }}"></div>
+      <div class="field"><label for="bank_ifsc_code">IFSC</label><input type="text" id="bank_ifsc_code" name="bank_ifsc_code" value="{{ form.bank_ifsc_code if form else (user.profile.bank_ifsc_code or '') }}"></div>
+      <div class="field"><label for="bank_name">Bank name</label><input type="text" id="bank_name" name="bank_name" value="{{ form.bank_name if form else (user.profile.bank_name or '') }}"></div>
+      <div class="field"><label for="bank_branch">Branch</label><input type="text" id="bank_branch" name="bank_branch" value="{{ form.bank_branch if form else (user.profile.bank_branch or '') }}"></div>
+      <div class="field"><label for="cancelled_cheque">Bank cancelled cheque</label><input type="file" id="cancelled_cheque" name="cancelled_cheque" accept=".pdf,.png,.jpg,.jpeg,.webp">{% if user.profile.cancelled_cheque_filename %}<div class="hint"><a href="{{ url_for('download_employee_document', user_id=user.id, document_type='cancelled-cheque') }}">Download current cancelled cheque</a></div>{% endif %}</div>
     </div>
 
     <div class="grid-2">
@@ -71,6 +99,13 @@
         <label for="monthly_ctc">Monthly CTC (₹)</label>
         <input type="number" step="0.01" id="monthly_ctc" name="monthly_ctc"
                value="{{ form.monthly_ctc if form else (user.profile.monthly_ctc or '') }}">
+
+        <label for="tax_regime">Income-tax regime</label>
+        <select id="tax_regime" name="tax_regime">
+          {% set selected_regime = form.tax_regime if form else (user.profile.tax_regime or 'new_regime') %}
+          <option value="new_regime" {% if selected_regime == 'new_regime' %}selected{% endif %}>New Regime</option>
+          <option value="old_regime" {% if selected_regime == 'old_regime' %}selected{% endif %}>Old Regime</option>
+        </select>
       </div>
       <div class="field" style="display: flex; align-items: center; gap: 10px; margin-top: 25px;">
         <label style="margin: 0; font-weight: 600; cursor: pointer;">

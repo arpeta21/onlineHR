@@ -4,16 +4,36 @@
 {% block page_title %}Performance Appraisal Management Dashboard{% endblock %}
 
 {% block content %}
+<div class="tabs performance-tabs">
+        <a class="tab {{ 'active' if view == 'overview' else '' }}" href="{{ url_for('admin_appraisals', view='overview') }}">Overview</a>
+        <a class="tab {{ 'active' if view == 'all' else '' }}" href="{{ url_for('admin_appraisals', view='all') }}">All Appraisals</a>
+        <a class="tab" href="{{ url_for('admin_appraisal_matrix') }}">9-box Matrix</a>
+</div>
+
+{% if view == 'overview' %}
+<div class="stats appraisal-stats">
+    <div class="stat"><div class="lbl">In Cycle</div><div class="val">{{ appraisals|length }}</div></div>
+    <div class="stat info"><div class="lbl">KRA Approved</div><div class="val">{{ status_counts[2] }}</div></div>
+    <div class="stat"><div class="lbl">Self Review Submitted</div><div class="val">{{ status_counts[3] }}</div></div>
+    <div class="stat ok"><div class="lbl">Completed</div><div class="val">{{ status_counts[4] }}</div></div>
+    <div class="stat bad"><div class="lbl">Sent Back</div><div class="val">{{ status_counts[5] }}</div></div>
+</div>
+<div class="panel appraisal-chart-panel">
+    <div class="phead"><div><span class="eyebrow">PERFORMANCE MANAGEMENT</span><h3>Appraisal outcomes and ratings</h3></div><span class="note">Status volume with average ratings</span></div>
+    <div class="chart-box"><canvas id="appraisalComboChart"></canvas></div>
+</div>
+
 <!-- Initiate Appraisal Card -->
-<div class="card" style="margin-bottom: 25px; border-top: 4px solid #2563eb;">
+<div class="card appraisal-initiate-card" style="margin-bottom: 25px; border-top: 4px solid #2563eb;">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 15px;">
-        <h3 style="margin: 0;">⚡ Initiate Performance Appraisal Cycle</h3>
+        <h3 style="margin: 0;">Initiate Performance Appraisal Cycle</h3>
         <a href="{{ url_for('export_appraisal_report') }}" class="btn btn-outline" style="font-weight: 600;">
-            📥 Export Appraisal Report (CSV)
+            Export Appraisal Report (Excel)
         </a>
     </div>
 
     <form method="post" action="{{ url_for('admin_initiate_appraisal') }}">
+        <p style="margin: 0 0 15px; color: #475569; font-size: 13px;">Choose a period and year to add the next appraisal cycle. When a new cycle is initiated for an employee, the previous active cycle is automatically archived.</p>
         <div style="display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap;">
             <div style="flex: 1; min-width: 200px;">
                 <label style="font-weight: 600; display: block; margin-bottom: 5px;">Review Period:</label>
@@ -29,7 +49,7 @@
             <div style="flex: 1; min-width: 220px;">
                 <label style="font-weight: 600; display: block; margin-bottom: 5px;">Target Employee:</label>
                 <select name="user_id" required style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
-                    <option value="all">⚡ ALL Active Employees (Bulk Cycle)</option>
+                    <option value="all">ALL Active Employees (Bulk Cycle)</option>
                     {% for e in employees %}
                     <option value="{{ e.id }}">{{ e.employee_code }} — {{ e.profile.full_name if e.profile else e.employee_code }}</option>
                     {% endfor %}
@@ -40,15 +60,18 @@
         <button type="submit" class="btn btn-primary" style="padding: 10px 24px; font-weight: 700;">
             🚀 Initiate Appraisal Cycle
         </button>
+        <p style="margin: 12px 0 0; color: #475569; font-size: 13px;"><strong>Rating scale:</strong> Excellent 5 · Outstanding 4 · Good 3 · Average 2 · Poor 1</p>
     </form>
 </div>
+{% endif %}
 
+{% if view == 'all' %}
 <!-- Appraisal Cycle Records Table -->
 <div class="card">
     <h3 style="margin-top: 0; margin-bottom: 20px;">All Performance Appraisals</h3>
 
     {% if appraisals %}
-    <table class="list" style="font-size: 13px;">
+    <table class="list appraisal-all-table">
         <thead>
             <tr>
                 <th>Emp Code</th>
@@ -74,10 +97,10 @@
                     {{ a.evaluator.profile.full_name if a.evaluator and a.evaluator.profile else '-' }}
                 </td>
                 <td style="font-weight: 700;">
-                    {{ '⭐ %.1f / 5'|format(a.self_rating) if a.self_rating else '-' }}
+                    {{ '%.1f / 5'|format(a.self_rating) if a.self_rating else '-' }}
                 </td>
                 <td style="font-weight: 700; color: #15803d;">
-                    {{ '⭐ %.1f / 5'|format(a.rating) if a.rating else '-' }}
+                    {{ '%.1f / 5'|format(a.rating) if a.rating else '-' }}
                 </td>
                 <td style="font-weight: 700; color: #0284c7;">
                     {{ '%.1f%%'|format(a.weighted_score) if a.weighted_score is not none else '-' }}
@@ -94,7 +117,13 @@
                     {% endif %}
                 </td>
                 <td>
+                    <div class="appraisal-row-actions">
                     <a href="{{ url_for('view_edit_appraisal', appraisal_id=a.id) }}" class="btn btn-primary" style="padding: 4px 10px; font-size: 12px; text-decoration: none;">View / Evaluate</a>
+                    <form method="post" action="{{ url_for('admin_delete_appraisal', appraisal_id=a.id) }}" onsubmit="return confirm('Delete this appraisal and all its KRA/KPI records?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-outline appraisal-delete-button">Delete</button>
+                    </form>
+                    </div>
                 </td>
             </tr>
             {% endfor %}
@@ -104,4 +133,27 @@
     <p style="color: #64748b; text-align: center; padding: 20px;">No appraisals initiated yet. Use the form above to launch a cycle!</p>
     {% endif %}
 </div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if view == 'overview' %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const canvas = document.getElementById('appraisalComboChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    new Chart(canvas, {
+        data: {
+            labels: [{% for label in chart_statuses %}{{ label|tojson }}{% if not loop.last %},{% endif %}{% endfor %}],
+            datasets: [
+                {type: 'bar', label: 'Appraisals', data: {{ status_counts|tojson }}, backgroundColor: '#dbeafe', borderColor: '#2563eb', borderWidth: 1, borderRadius: 5, yAxisID: 'count'},
+                {type: 'line', label: 'Self rating', data: {{ self_averages|tojson }}, borderColor: '#0d9488', backgroundColor: '#0d9488', tension: .3, pointRadius: 3, yAxisID: 'rating'},
+                {type: 'line', label: 'Manager rating', data: {{ manager_averages|tojson }}, borderColor: '#7c3aed', backgroundColor: '#7c3aed', tension: .3, pointRadius: 3, yAxisID: 'rating'}
+            ]
+        },
+        options: {responsive: true, maintainAspectRatio: false, interaction: {mode: 'index', intersect: false}, scales: {count: {beginAtZero: true, grid: {color: '#eef0f2'}, title: {display: true, text: 'Appraisal count'}}, rating: {beginAtZero: true, max: 5, position: 'right', grid: {drawOnChartArea: false}, title: {display: true, text: 'Average rating'}}}, plugins: {legend: {position: 'bottom', labels: {boxWidth: 9, usePointStyle: true}}}}
+    });
+});
+</script>
+{% endif %}
 {% endblock %}

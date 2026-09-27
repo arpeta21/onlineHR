@@ -42,6 +42,20 @@
             <input type="text" id="current_designation" name="current_designation" value="{{ candidate.current_designation or '' }}">
         </div>
 
+        <div class="grid-2">
+            <div class="field">
+                <label for="hiring_source">Hiring Source</label>
+                <select id="hiring_source" name="hiring_source">
+                    <option value="external" {% if not candidate.recruitment_meta or candidate.recruitment_meta.hiring_source == 'external' %}selected{% endif %}>External</option>
+                    <option value="internal" {% if candidate.recruitment_meta and candidate.recruitment_meta.hiring_source == 'internal' %}selected{% endif %}>Internal</option>
+                </select>
+            </div>
+            <div class="field">
+                <label for="recruitment_cost">Recruitment Cost (₹ Lakh)</label>
+                <input type="number" step="0.01" min="0" id="recruitment_cost" name="recruitment_cost" value="{{ candidate.recruitment_meta.recruitment_cost if candidate.recruitment_meta else 0 }}">
+            </div>
+        </div>
+
         <div class="field">
             <label for="key_skills">Candidate Key Skills (Comma-Separated) *</label>
             <input type="text" id="key_skills" name="key_skills" value="{{ candidate.key_skills or '' }}" required style="font-weight: 600;">

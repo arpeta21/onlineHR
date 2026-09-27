@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Investment Declarations{% endblock %}
+{% block page_title %}Investment Declarations{% endblock %}
+
+{% block content %}
+{% include "partials/back_to_payroll.html" %}
+<div class="card">
+  <h3>HR Review Queue</h3>
+  <p class="card-sub">Review submitted declarations and supporting evidence. Only approved eligible amounts under the employee's old tax regime flow into payroll TDS.</p>
+  <table class="list">
+    <thead><tr><th>Employee</th><th>FY</th><th>Regime</th><th>Section</th><th>Declared</th><th>Supporting Document</th><th>Status</th><th>Decision</th><th>Remarks</th></tr></thead>
+    <tbody>
+      {% for declaration in declarations %}
+      <tr>
+        <td>{{ declaration.user.employee_code }} - {{ declaration.user.profile.full_name if declaration.user.profile else '' }}</td>
+        <td>{{ declaration.financial_year }}</td>
+        <td>{{ declaration.tax_regime.replace('_', ' ').title() }}</td>
+        <td>{{ declaration.section }}</td>
+        <td>₹{{ '%.2f'|format(declaration.declared_amount) }}</td>
+        <td>{% if declaration.document_filename %}<a href="{{ url_for('download_investment_document', declaration_id=declaration.id) }}">View proof</a>{% else %}Not provided{% endif %}</td>
+        <td>{{ 'Submitted' if declaration.status == 'pending' else declaration.status.title() }}</td>
+        <td>
+          {% if declaration.status in ['submitted', 'pending'] %}
+          <form method="post" action="{{ url_for('decide_investment_declaration', declaration_id=declaration.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="number" name="approved_amount" min="0" max="{{ declaration.declared_amount }}" step="0.01" placeholder="Approved amount" required>
+            <input type="text" name="decision_note" placeholder="Remark (required to reject)">
+            <button name="decision" value="approved" class="btn btn-primary">Approve</button>
+            <button name="decision" value="rejected" class="btn btn-outline" formnovalidate>Reject</button>
+          </form>
+          {% else %}{{ declaration.status.title() }} · Approved ₹{{ '%.2f'|format(declaration.approved_amount) }}{% endif %}
+        </td>
+        <td>{{ declaration.decision_note or '—' }}</td>
+      </tr>
+      {% else %}<tr><td colspan="9">No investment declarations.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -80,7 +80,7 @@
         <tr>
             <td style="padding: 10px 14px; border: 1px solid #cbd5e1; font-weight: 600;">Confirmed Joining Date</td>
             <td style="padding: 10px 14px; border: 1px solid #cbd5e1; font-weight: 800; color: #2563eb; font-size: 15px;">
-                📅 {{ candidate.joining_date.strftime('%d %B %Y') if candidate.joining_date else '-' }}
+                {{ candidate.joining_date.strftime('%d %B %Y') if candidate.joining_date else '-' }}
             </td>
         </tr>
     </table>

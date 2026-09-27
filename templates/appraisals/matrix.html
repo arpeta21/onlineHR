@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Team 9-box Matrix{% endblock %}
-{% block page_title %}Team 9-box Matrix{% endblock %}
+{% block title %}{{ matrix_title|default('Team 9-box Matrix') }}{% endblock %}
+{% block page_title %}{{ matrix_title|default('Team 9-box Matrix') }}{% endblock %}
 {% block content %}
-<div class="matrix-intro"><div><span class="eyebrow">Manager view</span><h1>Performance and potential, together.</h1><p>This view is private to you and uses completed appraisals for your reporting team.</p></div><a class="btn btn-outline" href="{{ url_for('manager_appraisals') }}">Back to team appraisals</a></div>
+<div class="matrix-intro"><div><span class="eyebrow">Performance management</span><h1>Performance and potential, together.</h1><p>{{ matrix_scope|default('Completed appraisals for your reporting team') }}.</p></div><a class="btn btn-outline" href="{{ url_for(back_endpoint|default('manager_appraisals')) }}">Back to appraisals</a></div>
 <div class="matrix-shell">
   <div class="matrix-y-label">Potential</div>
   <div class="matrix-content">

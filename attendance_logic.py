@@ -4,12 +4,62 @@ Handles multi-session clock-in/out, outdoor/break tracking, OT hours, off-day wo
 """
 
 from datetime import datetime, date
+from flask import has_request_context
+from flask_login import current_user
 from models import db, Attendance, AttendanceSession, User, EmployeeProfile, PayrollSetting
+from time_utils import now_ist, today_ist
+from work_calendar import holiday_for_date
+
+
+def _is_off_day(day, state_code=None):
+    """
+    A day counts as an "off day" for OT purposes if it's a Sunday OR a
+    declared holiday for the employee's state. Previously this only
+    checked Sunday, so anyone who worked a declared (non-Sunday) holiday
+    had their OT computed as (hours_worked - 8) instead of the full day
+    counting as OT - the same way Sunday work is already treated. That
+    understated real OT liability on the payroll register and also made
+    the attendance export's "Off Day" column wrong for holiday work.
+    """
+    return day.weekday() == 6 or holiday_for_date(day, state_code) is not None
+
+
+def _get_authorized_target(user_id, allow_bulk=False):
+    user = User.query.get(user_id)
+    if not user or not user.is_active:
+        return None
+    if not has_request_context():
+        return user
+    if not current_user.is_authenticated:
+        return None
+    if current_user.id == user_id:
+        return user
+    if current_user.role == "admin":
+        return user
+    if current_user.tenant_id is None or user.tenant_id != current_user.tenant_id:
+        return None
+    if current_user.role == "demo_admin":
+        return user if allow_bulk else None
+    if current_user.role == "manager" and user.profile and user.profile.reporting_manager_id == current_user.id:
+        return user
+    return None
+
+
+def _authorized_targets(user_ids):
+    targets = []
+    for user_id in user_ids:
+        target = _get_authorized_target(user_id, allow_bulk=True)
+        if target is None:
+            return None
+        targets.append(target)
+    return targets
 
 
 def get_today_attendance(user_id):
     """Return today's attendance record for user if exists."""
-    today = date.today()
+    if _get_authorized_target(user_id) is None:
+        return None
+    today = today_ist()
     return Attendance.query.filter_by(user_id=user_id, date=today).first()
 
 
@@ -26,15 +76,19 @@ def clock_in_user(user_id, notes=None, reason=None):
     Record clock-in time for user. Supports multiple sessions per day!
     If user is already clocked in without clocking out, return warning.
     """
-    today = date.today()
-    now = datetime.now()
-    is_sunday = today.weekday() == 6
+    target = _get_authorized_target(user_id)
+    if target is None:
+        return None, False, "You are not authorised to access this employee's attendance."
+    today = today_ist()
+    now = now_ist()
+    state_code = target.profile.current_state if target.profile else None
+    off_day = _is_off_day(today, state_code)
 
     rec = Attendance.query.filter_by(user_id=user_id, date=today).first()
 
     if not rec:
-        status = "Late" if now.hour >= 10 and now.minute > 15 else "Present"
-        if is_sunday:
+        status = "Late" if (now.hour, now.minute) >= (10, 15) else "Present"
+        if off_day:
             status = "Present"
         rec = Attendance(
             user_id=user_id,
@@ -42,7 +96,8 @@ def clock_in_user(user_id, notes=None, reason=None):
             clock_in=now,
             status=status,
             notes=notes,
-            is_off_day=is_sunday
+            is_off_day=off_day,
+            tenant_id=target.tenant_id,
         )
         db.session.add(rec)
         db.session.flush()
@@ -55,6 +110,7 @@ def clock_in_user(user_id, notes=None, reason=None):
     # Create new session
     session = AttendanceSession(
         attendance_id=rec.id,
+        tenant_id=target.tenant_id,
         clock_in=now,
         reason=reason or notes
     )
@@ -71,8 +127,11 @@ def clock_out_user(user_id, notes=None):
     """
     Record clock-out time for the active session. Calculates daily hours & OT hours.
     """
-    today = date.today()
-    now = datetime.now()
+    target = _get_authorized_target(user_id)
+    if target is None:
+        return None, False, "You are not authorised to access this employee's attendance."
+    today = today_ist()
+    now = now_ist()
 
     rec = Attendance.query.filter_by(user_id=user_id, date=today).first()
     if not rec or not rec.sessions:
@@ -107,15 +166,20 @@ def bulk_mark_attendance(user_ids, start_date, end_date, status, notes=None):
     Mark attendance for multiple users across a date range.
     """
     from datetime import timedelta
+    targets = _authorized_targets(user_ids)
+    if targets is None:
+        return 0, "One or more employees are outside your authorised scope."
     cur = start_date
     count = 0
 
     while cur <= end_date:
-        is_sunday = cur.weekday() == 6
-        for uid in user_ids:
+        for uid, target in zip(user_ids, targets):
+            state_code = target.profile.current_state if target.profile else None
+            off_day = _is_off_day(cur, state_code)
             rec = Attendance.query.filter_by(user_id=uid, date=cur).first()
             if rec:
                 rec.status = status
+                rec.is_off_day = off_day
                 if notes:
                     rec.notes = notes
             else:
@@ -124,7 +188,8 @@ def bulk_mark_attendance(user_ids, start_date, end_date, status, notes=None):
                     date=cur,
                     status=status,
                     notes=notes,
-                    is_off_day=is_sunday
+                    is_off_day=off_day,
+                    tenant_id=target.tenant_id,
                 )
                 db.session.add(rec)
             count += 1
@@ -136,7 +201,10 @@ def bulk_mark_attendance(user_ids, start_date, end_date, status, notes=None):
 
 def get_user_monthly_attendance(user_id, month=None, year=None):
     """Retrieve all attendance records and totals for a given month/year."""
-    today = date.today()
+    if _get_authorized_target(user_id) is None:
+        return {"records": [], "present_count": 0, "late_count": 0, "absent_count": 0,
+                "half_day_count": 0, "total_ot_hours": 0.0, "month": month, "year": year}
+    today = today_ist()
     month = month or today.month
     year = year or today.year
 
@@ -175,8 +243,12 @@ def get_user_full_month_calendar(user_id, month=None, year=None):
     Returns a complete day-by-day calendar matrix for the entire month (1st to last day).
     Maps Attendance records, Leave applications, and Backdated Regularizations.
     """
+    if _get_authorized_target(user_id) is None:
+        return {"calendar_days": [], "present_count": 0, "late_count": 0,
+                "absent_count": 0, "half_day_count": 0, "missed_count": 0,
+                "month": month, "year": year, "month_name": ""}
     import calendar
-    today = date.today()
+    today = today_ist()
     month = month or today.month
     year = year or today.year
 
@@ -206,6 +278,8 @@ def get_user_full_month_calendar(user_id, month=None, year=None):
         LeaveApplication.start_date <= end_date,
         LeaveApplication.end_date >= start_date
     ).all()
+    user = User.query.get(user_id)
+    state_code = user.profile.current_state if user and user.profile else None
     leave_dates = set()
     for l in leaves:
         cur = max(start_date, l.start_date)
@@ -227,6 +301,7 @@ def get_user_full_month_calendar(user_id, month=None, year=None):
         att = att_map.get(cur_d)
         reg = reg_map.get(cur_d)
         is_sunday = cur_d.weekday() == 6
+        holiday = holiday_for_date(cur_d, state_code)
         is_future = cur_d > today
 
         display_status = "Not Marked"
@@ -243,6 +318,8 @@ def get_user_full_month_calendar(user_id, month=None, year=None):
                 absent_count += 1
         elif cur_d in leave_dates:
             display_status = "On Leave"
+        elif holiday:
+            display_status = f"Holiday: {holiday.name}"
         elif is_sunday:
             display_status = "Off Day / Sunday"
         elif is_future:
@@ -259,6 +336,7 @@ def get_user_full_month_calendar(user_id, month=None, year=None):
             "regularization": reg,
             "display_status": display_status,
             "is_sunday": is_sunday,
+            "holiday": holiday,
             "is_future": is_future
         })
 
@@ -290,6 +368,7 @@ def apply_attendance_regularization(user_id, date_obj, clock_in_time, clock_out_
 
     reg = AttendanceRegularization(
         user_id=user_id,
+        tenant_id=user.tenant_id,
         approver_id=user_id if is_founding else (user.profile.reporting_manager_id if user.profile else None),
         date=date_obj,
         requested_clock_in=clock_in_time,
@@ -298,7 +377,7 @@ def apply_attendance_regularization(user_id, date_obj, clock_in_time, clock_out_
         reason=reason,
         status=req_status,
         is_self_approved=is_founding,
-        decided_at=datetime.utcnow() if is_founding else None,
+        decided_at=now_ist() if is_founding else None,
         decision_note="Auto self-approved (Founding Member)" if is_founding else None
     )
     db.session.add(reg)
@@ -309,6 +388,7 @@ def apply_attendance_regularization(user_id, date_obj, clock_in_time, clock_out_
         if not att:
             att = Attendance(
                 user_id=user_id,
+                tenant_id=user.tenant_id,
                 date=date_obj,
                 clock_in=clock_in_time,
                 clock_out=clock_out_time,
@@ -345,9 +425,27 @@ def decide_attendance_regularization(reg_id, approver_id, decision, decision_not
     if reg.status != "pending":
         return reg, False, "This request has already been decided."
 
+    if not has_request_context() or not current_user.is_authenticated or current_user.id != approver_id:
+        return None, False, "You are not authorised to decide this request."
+    if current_user.role == "admin":
+        pass
+    elif current_user.role == "manager":
+        if (not reg.user or not reg.user.profile
+                or reg.tenant_id != current_user.tenant_id
+                or reg.user.tenant_id != current_user.tenant_id
+                or reg.user.profile.reporting_manager_id != current_user.id):
+            return None, False, "You are not authorised to decide this request."
+    elif current_user.role == "demo_admin":
+        if not reg.user or reg.user.tenant_id != current_user.tenant_id:
+            return None, False, "You are not authorised to decide this request."
+    else:
+        return None, False, "You are not authorised to decide this request."
+    if decision not in {"approved", "rejected"}:
+        return None, False, "Invalid regularization decision."
+
     reg.status = decision
     reg.approver_id = approver_id
-    reg.decided_at = datetime.utcnow()
+    reg.decided_at = now_ist()
     reg.decision_note = decision_note
 
     if decision == "approved":
@@ -355,6 +453,7 @@ def decide_attendance_regularization(reg_id, approver_id, decision, decision_not
         if not att:
             att = Attendance(
                 user_id=reg.user_id,
+                tenant_id=reg.tenant_id or (reg.user.tenant_id if reg.user else None),
                 date=reg.date,
                 clock_in=reg.requested_clock_in,
                 clock_out=reg.requested_clock_out,
@@ -370,4 +469,3 @@ def decide_attendance_regularization(reg_id, approver_id, decision, decision_not
 
     db.session.commit()
     return reg, True, f"Backdated attendance request {decision} successfully."
-

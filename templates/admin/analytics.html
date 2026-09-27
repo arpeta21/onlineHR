@@ -1,264 +1,81 @@
 {% extends "base.html" %}
 {% block title %}Analytics{% endblock %}
-{% block page_title %}People analytics{% endblock %}
+{% block page_title %}People Analytics{% endblock %}
+{% block page_sub %}Visual workforce intelligence{% endblock %}
+
 {% block content %}
-<div class="card">
-  <div class="section-heading">
-    <div>
-      <span class="eyebrow">Workforce pulse</span>
-      <h3>Team analytics snapshot</h3>
-    </div>
-    <span class="section-icon">📈</span>
+<div class="analytics-page">
+  <div class="tabs analytics-tabs">
+    <a class="tab active" href="{{ url_for('admin_analytics_dashboard', month=selected_month, year=selected_year) }}">Overview</a>
+    <a class="tab" href="{{ url_for('export_analytics_dashboard', month=selected_month, year=selected_year) }}">Export</a>
   </div>
 
-  <form method="get" action="{{ url_for('admin_analytics_dashboard') }}" class="inline-filter-bar" style="margin-bottom: 20px;">
-    <label>Month</label>
-    <select name="month">
-      {% for m in range(1,13) %}
-      <option value="{{ m }}" {% if m == selected_month %}selected{% endif %}>{{ '%02d'|format(m) }}</option>
-      {% endfor %}
-    </select>
-    <label>Year</label>
-    <input type="number" name="year" value="{{ selected_year }}" min="2024" max="2100">
-    <button type="submit" class="btn btn-primary">Refresh</button>
-  </form>
+  <section class="card analytics-controls">
+    <form method="get" action="{{ url_for('admin_analytics_dashboard') }}" class="inline-filter-bar">
+      <label>Month</label>
+      <select name="month">{% for m in range(1,13) %}<option value="{{ m }}" {% if m == selected_month %}selected{% endif %}>{{ '%02d'|format(m) }}</option>{% endfor %}</select>
+      <label>Year</label><input type="number" name="year" value="{{ selected_year }}" min="2024" max="2100">
+      <button type="submit" class="btn btn-primary">Refresh</button>
+    </form>
+  </section>
 
-  <div class="stat-row">
-    <div class="stat-card">
-      <div class="num">{{ summary.top_rated_employee }}</div>
-      <div class="lbl">Top-rated employee</div>
-    </div>
-    <div class="stat-card">
-      <div class="num">{{ '%.2f'|format(summary.average_rating) if summary.average_rating else '0.00' }}</div>
-      <div class="lbl">Average rating</div>
-    </div>
-    <div class="stat-card">
-      <div class="num">{{ summary.attendance_top_status }}</div>
-      <div class="lbl">Most common attendance status</div>
-    </div>
-    <div class="stat-card">
-      <div class="num">{{ summary.location_leader }}</div>
-      <div class="lbl">Most common location</div>
-    </div>
+  <div class="analytics-kpis">
+    <div class="stat-card"><div class="num">{{ summary.top_rated_employee }}</div><div class="lbl">Top-rated employee</div></div>
+    <div class="stat-card"><div class="num">{{ '%.2f'|format(summary.average_rating) if summary.average_rating else '0.00' }}</div><div class="lbl">Average rating</div></div>
+    <div class="stat-card"><div class="num">{{ summary.attendance_top_status }}</div><div class="lbl">Common attendance status</div></div>
+    <div class="stat-card"><div class="num">{{ summary.location_leader }}</div><div class="lbl">Common location</div></div>
   </div>
 
-  <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
-    <a class="btn btn-primary" href="{{ url_for('export_analytics_dashboard', month=selected_month, year=selected_year) }}">Export CSV</a>
+  <div class="analytics-chart-grid">
+    <section class="card analytics-chart-card"><h3>Rating distribution</h3><div class="analytics-chart"><canvas id="ratingRadar"></canvas></div></section>
+    <section class="card analytics-chart-card"><h3>Department performance</h3><div class="analytics-chart"><canvas id="departmentChart"></canvas></div></section>
+    <section class="card analytics-chart-card"><h3>Manager performance</h3><div class="analytics-chart"><canvas id="managerChart"></canvas></div></section>
+    <section class="card analytics-chart-card"><h3>Employee rating trend</h3><div class="analytics-chart"><canvas id="employeeTrendChart"></canvas></div></section>
+    <section class="card analytics-chart-card"><h3>Attendance status</h3><div class="analytics-chart"><canvas id="attendanceChart"></canvas></div></section>
+    <section class="card analytics-chart-card"><h3>Location spread</h3><div class="analytics-chart"><canvas id="locationChart"></canvas></div></section>
   </div>
+
+  <section class="card analytics-narrative">
+    <div class="section-heading"><div><span class="eyebrow">Narrative insight</span><h3>Descriptive, predictive &amp; prescriptive analysis</h3></div></div>
+    <div class="analytics-narrative-grid">
+      <div><h4>Descriptive</h4><ul>{% for point in summary.descriptive_points %}<li>{{ point }}</li>{% endfor %}</ul></div>
+      <div><h4>Predictive</h4><ul>{% for point in summary.predictive_points %}<li>{{ point }}</li>{% endfor %}</ul></div>
+      <div><h4>Prescriptive</h4><ul>{% for point in summary.prescriptive_points %}<li>{{ point }}</li>{% endfor %}</ul></div>
+    </div>
+  </section>
 </div>
+{% endblock %}
 
-<div class="card">
-  <div class="section-heading">
-    <div><span class="eyebrow">Visual trend</span><h3>Performance and engagement snapshot</h3></div>
-    <span class="section-icon">📊</span>
-  </div>
-
-  <div class="resource-columns">
-    <div>
-      <h4 style="margin-bottom: 12px;">Rating distribution</h4>
-      {% set total_rating_count = summary.rating_distribution['Outstanding'] + summary.rating_distribution['Good'] + summary.rating_distribution['Needs attention'] %}
-      {% if total_rating_count %}
-      {% for label, value in summary.rating_distribution.items() %}
-      {% set pct = (value / total_rating_count * 100) if total_rating_count else 0 %}
-      <div style="margin-bottom: 12px;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-          <span>{{ label }}</span>
-          <strong>{{ value }}</strong>
-        </div>
-        <div style="background: #eef2f7; border-radius: 999px; overflow: hidden; height: 10px; width: 100%;">
-          <div style="width: {{ pct }}%; background: {% if label == 'Outstanding' %}#2e7d32{% elif label == 'Good' %}#f5b700{% else %}#d32f2f{% endif %}; height: 100%;"></div>
-        </div>
-      </div>
-      {% endfor %}
-      {% else %}
-      <p class="muted">No rating distribution is available yet.</p>
-      {% endif %}
-    </div>
-
-    <div>
-      <h4 style="margin-bottom: 12px;">Top employee scores</h4>
-      {% if summary.rating_trend %}
-      <div style="display: flex; align-items: end; gap: 10px; min-height: 180px;">
-        {% for item in summary.rating_trend[:6] %}
-        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px;">
-          <div style="width: 100%; display: flex; justify-content: center; align-items: end; height: 120px;">
-            <div style="width: 100%; max-width: 44px; background: linear-gradient(180deg, #5b8def 0%, #2d5ee8 100%); border-radius: 8px 8px 0 0; height: {{ (item.value / 5 * 100) if item.value else 0 }}%; min-height: 8px;"></div>
-          </div>
-          <div style="font-size: 11px; text-align: center; line-height: 1.2;">{{ item.label[:10] }}</div>
-          <strong>{{ '%.2f'|format(item.value) }}</strong>
-        </div>
-        {% endfor %}
-      </div>
-      {% else %}
-      <p class="muted">No employee scores are available for the chart yet.</p>
-      {% endif %}
-    </div>
-  </div>
-</div>
-
-<div class="card">
-  <div class="section-heading">
-    <div><span class="eyebrow">Narrative insight</span><h3>Descriptive, predictive & prescriptive analysis</h3></div>
-    <span class="section-icon">🔍</span>
-  </div>
-
-  <div style="display: grid; gap: 16px;">
-    <div>
-      <h4 style="margin-bottom: 10px;">Descriptive</h4>
-      <ul>
-        {% for point in summary.descriptive_points %}
-        <li>{{ point }}</li>
-        {% endfor %}
-      </ul>
-    </div>
-    <div>
-      <h4 style="margin-bottom: 10px;">Predictive</h4>
-      <ul>
-        {% for point in summary.predictive_points %}
-        <li>{{ point }}</li>
-        {% endfor %}
-      </ul>
-    </div>
-    <div>
-      <h4 style="margin-bottom: 10px;">Prescriptive</h4>
-      <ul>
-        {% for point in summary.prescriptive_points %}
-        <li>{{ point }}</li>
-        {% endfor %}
-      </ul>
-    </div>
-  </div>
-</div>
-
-<div class="resource-columns">
-  <div class="card">
-    <div class="section-heading">
-      <div><span class="eyebrow">Department</span><h3>Team quality by department</h3></div>
-      <span class="section-icon">🏢</span>
-    </div>
-    {% if summary.department_breakdown %}
-    <table class="list">
-      <thead>
-        <tr><th>Department</th><th>Employees</th><th>Avg rating</th></tr>
-      </thead>
-      <tbody>
-        {% for item in summary.department_breakdown %}
-        <tr>
-          <td>{{ item.department }}</td>
-          <td>{{ item.count }}</td>
-          <td>{{ '%.2f'|format(item.average_rating) }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <p class="muted">No department drill-down is available yet.</p>
-    {% endif %}
-  </div>
-
-  <div class="card">
-    <div class="section-heading">
-      <div><span class="eyebrow">Manager</span><h3>Manager performance view</h3></div>
-      <span class="section-icon">👥</span>
-    </div>
-    {% if summary.manager_breakdown %}
-    <table class="list">
-      <thead>
-        <tr><th>Manager</th><th>Employees</th><th>Avg rating</th></tr>
-      </thead>
-      <tbody>
-        {% for item in summary.manager_breakdown %}
-        <tr>
-          <td>{{ item.manager }}</td>
-          <td>{{ item.count }}</td>
-          <td>{{ '%.2f'|format(item.average_rating) }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <p class="muted">No manager drill-down is available yet.</p>
-    {% endif %}
-  </div>
-</div>
-
-<div class="resource-columns">
-  <div class="card">
-    <div class="section-heading">
-      <div><span class="eyebrow">Ratings</span><h3>Employee performance distribution</h3></div>
-      <span class="section-icon">⭐</span>
-    </div>
-    {% if rating_rows %}
-    <table class="list">
-      <thead>
-        <tr><th>Employee</th><th>Manager rating</th><th>Self rating</th></tr>
-      </thead>
-      <tbody>
-        {% for row in rating_rows %}
-        <tr>
-          <td>{{ row.employee_name }}</td>
-          <td>{{ '%.2f'|format(row.rating) if row.rating else '—' }}</td>
-          <td>{{ '%.2f'|format(row.self_rating) if row.self_rating else '—' }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <p class="muted">No appraisal ratings are available for the selected year yet.</p>
-    {% endif %}
-    <div style="margin-top: 18px;">
-      {% for label, value in summary.rating_distribution.items() %}
-      <div class="mini-stat"><strong>{{ label }}</strong><span>{{ value }}</span></div>
-      {% endfor %}
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="section-heading">
-      <div><span class="eyebrow">Attendance</span><h3>Month status summary</h3></div>
-      <span class="section-icon">⏱️</span>
-    </div>
-    {% if attendance_rows %}
-    <table class="list">
-      <thead>
-        <tr><th>Status</th><th>Count</th></tr>
-      </thead>
-      <tbody>
-        {% for row in attendance_rows %}
-        <tr>
-          <td>{{ row.status }}</td>
-          <td>{{ row.count }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <p class="muted">No attendance data exists for this period.</p>
-    {% endif %}
-  </div>
-
-  <div class="card">
-    <div class="section-heading">
-      <div><span class="eyebrow">Location</span><h3>Employee location spread</h3></div>
-      <span class="section-icon">📍</span>
-    </div>
-    {% if location_rows %}
-    <table class="list">
-      <thead>
-        <tr><th>City</th><th>Employees</th></tr>
-      </thead>
-      <tbody>
-        {% for row in location_rows %}
-        <tr>
-          <td>{{ row.city }}</td>
-          <td>{{ row.count }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <p class="muted">No location data is available yet. Ask employees to complete their city details.</p>
-    {% endif %}
-  </div>
-</div>
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  if (typeof Chart === 'undefined') return;
+  const grid = {color: '#eef0f2'};
+  const text = '#6b7280';
+  Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+  Chart.defaults.font.size = 11;
+  Chart.defaults.color = text;
+  const ratingLabels = [{% for item in summary.rating_scale %}{{ item.label|tojson }}{% if not loop.last %},{% endif %}{% endfor %}];
+  const selfRatings = [{% for item in summary.rating_scale %}{{ item.self_count }}{% if not loop.last %},{% endif %}{% endfor %}];
+  const managerRatings = [{% for item in summary.rating_scale %}{{ item.manager_count }}{% if not loop.last %},{% endif %}{% endfor %}];
+  const potentialRatings = [{% for item in summary.rating_scale %}{{ item.potential_count }}{% if not loop.last %},{% endif %}{% endfor %}];
+  const departmentLabels = [{% for item in summary.department_breakdown %}{{ item.department|tojson }}{% if not loop.last %},{% endif %}{% endfor %}];
+  const departmentValues = [{% for item in summary.department_breakdown %}{{ item.average_rating }}{% if not loop.last %},{% endif %}{% endfor %}];
+  const managerLabels = [{% for item in summary.manager_breakdown %}{{ item.manager|tojson }}{% if not loop.last %},{% endif %}{% endfor %}];
+  const managerValues = [{% for item in summary.manager_breakdown %}{{ item.average_rating }}{% if not loop.last %},{% endif %}{% endfor %}];
+  const employeeLabels = [{% for row in rating_rows[:12] %}{{ row.employee_name[:12]|tojson }}{% if not loop.last %},{% endif %}{% endfor %}];
+  const employeeValues = [{% for row in rating_rows[:12] %}{{ row.rating or 0 }}{% if not loop.last %},{% endif %}{% endfor %}];
+  const attendanceLabels = [{% for row in attendance_rows %}{{ row.status|tojson }}{% if not loop.last %},{% endif %}{% endfor %}];
+  const attendanceValues = [{% for row in attendance_rows %}{{ row.count }}{% if not loop.last %},{% endif %}{% endfor %}];
+  const locationLabels = [{% for row in location_rows %}{{ row.city|tojson }}{% if not loop.last %},{% endif %}{% endfor %}];
+  const locationValues = [{% for row in location_rows %}{{ row.count }}{% if not loop.last %},{% endif %}{% endfor %}];
+  const scales = {y: {beginAtZero: true, max: 5, grid}, x: {grid: {display: false}}};
+  new Chart(document.getElementById('ratingRadar'), {type:'radar', data:{labels:ratingLabels, datasets:[{label:'Self', data:selfRatings, borderColor:'#2563eb', backgroundColor:'rgba(37,99,235,.12)'},{label:'Manager', data:managerRatings, borderColor:'#0d9488', backgroundColor:'rgba(13,148,136,.12)'},{label:'Potential', data:potentialRatings, borderColor:'#7c3aed', backgroundColor:'rgba(124,58,237,.12)'}]}, options:{plugins:{legend:{position:'bottom',labels:{boxWidth:8,usePointStyle:true}}}, scales:{r:{beginAtZero:true,max:5,ticks:{stepSize:1},grid:{color:'#e5e7eb'},pointLabels:{font:{size:10}}}}, maintainAspectRatio:false}});
+  new Chart(document.getElementById('departmentChart'), {type:'bar', data:{labels:departmentLabels,datasets:[{data:departmentValues,backgroundColor:'#1e3a5f',borderRadius:5}]}, options:{plugins:{legend:{display:false}},scales,maintainAspectRatio:false}});
+  new Chart(document.getElementById('managerChart'), {type:'bar', data:{labels:managerLabels,datasets:[{data:managerValues,backgroundColor:'#0d9488',borderRadius:5}]}, options:{indexAxis:'y',plugins:{legend:{display:false}},scales,maintainAspectRatio:false}});
+  new Chart(document.getElementById('employeeTrendChart'), {type:'line', data:{labels:employeeLabels,datasets:[{label:'Manager rating',data:employeeValues,borderColor:'#7c3aed',backgroundColor:'rgba(124,58,237,.1)',fill:true,tension:.3,pointRadius:3}]}, options:{plugins:{legend:{display:false}},scales,maintainAspectRatio:false}});
+  new Chart(document.getElementById('attendanceChart'), {type:'doughnut', data:{labels:attendanceLabels,datasets:[{data:attendanceValues,backgroundColor:['#059669','#2563eb','#b45309','#dc2626','#9ca3af'],borderWidth:0}]}, options:{plugins:{legend:{position:'bottom',labels:{boxWidth:8,usePointStyle:true}}},cutout:'68%',maintainAspectRatio:false}});
+  new Chart(document.getElementById('locationChart'), {type:'polarArea', data:{labels:locationLabels,datasets:[{data:locationValues,backgroundColor:['#1e3a5f','#2563eb','#0d9488','#7c3aed','#b45309','#dc2626'],borderWidth:0}]}, options:{plugins:{legend:{position:'bottom',labels:{boxWidth:8,usePointStyle:true}}},scales:{r:{grid:{color:'#e5e7eb'},ticks:{display:false}}},maintainAspectRatio:false}});
+});
+</script>
 {% endblock %}
