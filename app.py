@@ -538,6 +538,36 @@ def create_default_letter_templates():
     db.session.commit()
 
 
+def migrate_payslip_tenant_id(engine):
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+    if "payslip" not in tables:
+        return
+
+    payslip_columns = {column["name"] for column in inspector.get_columns("payslip")}
+    user_columns = (
+        {column["name"] for column in inspector.get_columns("user")}
+        if "user" in tables else set()
+    )
+    with engine.begin() as connection:
+        if "tenant_id" not in payslip_columns:
+            connection.execute(text("ALTER TABLE payslip ADD COLUMN tenant_id INTEGER NULL"))
+
+        if "tenant_id" in user_columns:
+            connection.execute(text(
+                'UPDATE payslip '
+                'SET tenant_id = (SELECT u.tenant_id FROM "user" AS u WHERE u.id = payslip.user_id) '
+                'WHERE tenant_id IS NULL AND EXISTS '
+                '(SELECT 1 FROM "user" AS u WHERE u.id = payslip.user_id AND u.tenant_id IS NOT NULL)'
+            ))
+
+        connection.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_payslip_tenant_id ON payslip (tenant_id)"
+        ))
+
+
 def run_lightweight_migrations():
     from sqlalchemy import inspect, text
     from models import (
@@ -567,6 +597,7 @@ def run_lightweight_migrations():
         SpecialApproval,
     )
 
+    migrate_payslip_tenant_id(db.engine)
     inspector = inspect(db.engine)
     tables = inspector.get_table_names()
 
@@ -593,7 +624,6 @@ def run_lightweight_migrations():
         "audit_log": "tenant_id INTEGER",
         "employee_profile": "tenant_id INTEGER",
         "leave_application": "tenant_id INTEGER",
-        "payslip": "tenant_id INTEGER",
         "attendance": "tenant_id INTEGER",
         "attendance_session": "tenant_id INTEGER",
         "special_approval": "tenant_id INTEGER",
